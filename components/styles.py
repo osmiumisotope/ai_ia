@@ -39,7 +39,7 @@ def get_custom_css() -> str:
     /* ===== HIDE STREAMLIT BRANDING ===== */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* Keep header visible for sidebar toggle */
     
     /* ===== MAIN CONTAINER ===== */
     .main .block-container {
@@ -335,6 +335,53 @@ def get_custom_css() -> str:
     
     [data-testid="stSidebar"] .block-container {
         padding: 2rem 1rem;
+    }
+    
+    /* ===== SIDEBAR COLLAPSE BUTTON - ALWAYS VISIBLE ===== */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: fixed !important;
+        top: 0.75rem !important;
+        left: 0.75rem !important;
+        z-index: 999999 !important;
+        background: var(--accent-teal) !important;
+        border-radius: 8px !important;
+        padding: 0.5rem !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+        border: 2px solid rgba(255, 255, 255, 0.2) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    [data-testid="collapsedControl"]:hover {
+        background: var(--accent-teal-light) !important;
+        transform: scale(1.05) !important;
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+    }
+    
+    [data-testid="collapsedControl"] svg {
+        width: 20px !important;
+        height: 20px !important;
+        color: white !important;
+        fill: white !important;
+    }
+    
+    /* Sidebar expand/collapse button when sidebar is open */
+    [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
+        background: rgba(16, 185, 129, 0.15) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
+        background: rgba(16, 185, 129, 0.25) !important;
+        border-color: rgba(16, 185, 129, 0.5) !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] svg {
+        color: var(--accent-teal) !important;
     }
     
     /* ===== NAVIGATION BUTTON STYLES ===== */

@@ -263,7 +263,7 @@ def render_expense_breakdown(expenses: Dict[str, float], income: float):
         ),
         xaxis=dict(
             title='Amount ($)',
-            titlefont=dict(color='#94A3B8'),
+            title_font=dict(color='#94A3B8'),
             tickfont=dict(color='#94A3B8'),
             gridcolor='#334155',
             showgrid=True
@@ -345,13 +345,13 @@ def render_retirement_projection_chart(
         ),
         xaxis=dict(
             title='Age',
-            titlefont=dict(color='#94A3B8'),
+            title_font=dict(color='#94A3B8'),
             tickfont=dict(color='#94A3B8'),
             gridcolor='#334155'
         ),
         yaxis=dict(
             title='Portfolio Value ($)',
-            titlefont=dict(color='#94A3B8'),
+            title_font=dict(color='#94A3B8'),
             tickfont=dict(color='#94A3B8'),
             gridcolor='#334155',
             tickformat='$,.0f'
