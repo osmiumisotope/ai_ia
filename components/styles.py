@@ -1,6 +1,6 @@
 """
 Custom CSS styles for the Financial Advisor Dashboard.
-Professional dark theme with teal and gold accents.
+Professional light theme with green and black accents.
 """
 
 def get_custom_css() -> str:
@@ -11,45 +11,72 @@ def get_custom_css() -> str:
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     :root {
-        --bg-primary: #0F172A;
-        --bg-secondary: #1E293B;
-        --bg-card: #1E293B;
-        --bg-card-hover: #334155;
-        --text-primary: #F1F5F9;
-        --text-secondary: #94A3B8;
+        --bg-primary: #FAF9F6;
+        --bg-secondary: #F5F4F0;
+        --bg-card: #FFFFFF;
+        --bg-card-hover: #F5F4F0;
+        --text-primary: #1E293B;
+        --text-secondary: #475569;
         --text-muted: #64748B;
-        --accent-teal: #10B981;
-        --accent-teal-light: #34D399;
-        --accent-gold: #F59E0B;
-        --accent-gold-light: #FBBF24;
-        --status-excellent: #10B981;
-        --status-good: #3B82F6;
-        --status-fair: #F59E0B;
-        --status-poor: #F97316;
-        --status-critical: #EF4444;
-        --border-color: #334155;
-        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        --accent-green: #059669;
+        --accent-green-light: #10B981;
+        --accent-green-dark: #047857;
+        --accent-gold: #D97706;
+        --accent-gold-light: #F59E0B;
+        --status-excellent: #059669;
+        --status-good: #0284C7;
+        --status-fair: #D97706;
+        --status-poor: #EA580C;
+        --status-critical: #DC2626;
+        --border-color: #E2E8F0;
+        --border-color-dark: #CBD5E1;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: var(--bg-primary) !important;
+    }
+    
+    /* Hide the black header bar */
+    header[data-testid="stHeader"] {
+        background-color: var(--bg-primary) !important;
+        border-bottom: none !important;
+    }
+    
+    /* Force beige background on all main areas */
+    .stApp > header + div {
+        background-color: var(--bg-primary) !important;
+    }
+    
+    [data-testid="stAppViewContainer"] {
+        background-color: var(--bg-primary) !important;
+    }
+    
+    [data-testid="stMain"] {
+        background-color: var(--bg-primary) !important;
+    }
+    
+    .main {
+        background-color: var(--bg-primary) !important;
     }
     
     /* ===== HIDE STREAMLIT BRANDING ===== */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* Keep header visible for sidebar toggle */
+    header {background-color: var(--bg-primary) !important;}
     
     /* ===== MAIN CONTAINER ===== */
     .main .block-container {
         padding: 2rem 3rem;
         max-width: 1400px;
+        background-color: var(--bg-primary);
     }
     
     /* ===== HEADER STYLES ===== */
     .dashboard-header {
-        background: linear-gradient(135deg, var(--bg-secondary) 0%, #0F172A 100%);
+        background: #FFFFFF;
         padding: 2rem 2.5rem;
         border-radius: 16px;
         margin-bottom: 2rem;
@@ -60,28 +87,27 @@ def get_custom_css() -> str:
     .dashboard-title {
         font-size: 2rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--accent-green);
         margin: 0;
         letter-spacing: -0.02em;
     }
     
     .dashboard-subtitle {
-        font-size: 1rem;
-        color: var(--text-secondary);
-        margin-top: 0.5rem;
+        display: none;
     }
     
     .client-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: var(--accent-teal);
-        color: white;
+        background: rgba(5, 150, 105, 0.1);
+        color: var(--accent-green);
         padding: 0.5rem 1rem;
         border-radius: 9999px;
         font-size: 0.875rem;
         font-weight: 600;
         margin-top: 1rem;
+        border: 1px solid rgba(5, 150, 105, 0.2);
     }
     
     /* ===== SECTION STYLES ===== */
@@ -96,7 +122,7 @@ def get_custom_css() -> str:
     }
     
     .section-container:hover {
-        border-color: var(--accent-teal);
+        border-color: var(--accent-green);
         box-shadow: var(--shadow-lg);
     }
     
@@ -125,7 +151,7 @@ def get_custom_css() -> str:
     
     /* ===== METRIC CARD STYLES ===== */
     .metric-card {
-        background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(30, 41, 59, 0.8) 100%);
+        background: var(--bg-card);
         border-radius: 12px;
         padding: 1.25rem;
         border: 1px solid var(--border-color);
@@ -135,8 +161,8 @@ def get_custom_css() -> str:
     
     .metric-card:hover {
         transform: translateY(-2px);
-        border-color: var(--accent-teal);
-        box-shadow: var(--shadow);
+        border-color: var(--accent-green);
+        box-shadow: var(--shadow-lg);
     }
     
     .metric-label {
@@ -183,33 +209,33 @@ def get_custom_css() -> str:
     }
     
     .status-excellent {
-        background: rgba(16, 185, 129, 0.15);
+        background: rgba(5, 150, 105, 0.1);
         color: var(--status-excellent);
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        border: 1px solid rgba(5, 150, 105, 0.3);
     }
     
     .status-good {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(2, 132, 199, 0.1);
         color: var(--status-good);
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        border: 1px solid rgba(2, 132, 199, 0.3);
     }
     
     .status-fair {
-        background: rgba(245, 158, 11, 0.15);
+        background: rgba(217, 119, 6, 0.1);
         color: var(--status-fair);
-        border: 1px solid rgba(245, 158, 11, 0.3);
+        border: 1px solid rgba(217, 119, 6, 0.3);
     }
     
     .status-poor {
-        background: rgba(249, 115, 22, 0.15);
+        background: rgba(234, 88, 12, 0.1);
         color: var(--status-poor);
-        border: 1px solid rgba(249, 115, 22, 0.3);
+        border: 1px solid rgba(234, 88, 12, 0.3);
     }
     
     .status-critical {
-        background: rgba(239, 68, 68, 0.15);
+        background: rgba(220, 38, 38, 0.1);
         color: var(--status-critical);
-        border: 1px solid rgba(239, 68, 68, 0.3);
+        border: 1px solid rgba(220, 38, 38, 0.3);
     }
     
     /* ===== SCORE RING ===== */
@@ -263,14 +289,14 @@ def get_custom_css() -> str:
         align-items: flex-start;
         gap: 0.75rem;
         padding: 0.75rem;
-        background: rgba(16, 185, 129, 0.05);
+        background: rgba(5, 150, 105, 0.05);
         border-radius: 8px;
         margin-bottom: 0.5rem;
-        border-left: 3px solid var(--accent-teal);
+        border-left: 3px solid var(--accent-green);
     }
     
     .recommendation-icon {
-        color: var(--accent-teal);
+        color: var(--accent-green);
         font-size: 1rem;
         flex-shrink: 0;
     }
@@ -283,8 +309,8 @@ def get_custom_css() -> str:
     
     /* ===== NET WORTH SUMMARY ===== */
     .networth-card {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(217, 119, 6, 0.08) 100%);
+        border: 1px solid rgba(5, 150, 105, 0.2);
         border-radius: 16px;
         padding: 1.5rem;
         text-align: center;
@@ -300,7 +326,7 @@ def get_custom_css() -> str:
     .networth-value {
         font-size: 2.5rem;
         font-weight: 700;
-        color: var(--accent-teal);
+        color: var(--accent-green);
         margin: 0.5rem 0;
     }
     
@@ -330,11 +356,20 @@ def get_custom_css() -> str:
     
     /* ===== SIDEBAR STYLES ===== */
     .css-1d391kg, [data-testid="stSidebar"] {
-        background: var(--bg-secondary);
+        background: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border-color);
+    }
+    
+    [data-testid="stSidebar"] > div:first-child {
+        background: var(--bg-secondary) !important;
+    }
+    
+    [data-testid="stSidebarContent"] {
+        background: var(--bg-secondary) !important;
     }
     
     [data-testid="stSidebar"] .block-container {
-        padding: 2rem 1rem;
+        padding: 1rem 0;
     }
     
     /* ===== SIDEBAR COLLAPSE BUTTON - ALWAYS VISIBLE ===== */
@@ -346,18 +381,17 @@ def get_custom_css() -> str:
         top: 0.75rem !important;
         left: 0.75rem !important;
         z-index: 999999 !important;
-        background: var(--accent-teal) !important;
+        background: var(--accent-green) !important;
         border-radius: 8px !important;
         padding: 0.5rem !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-        border: 2px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: var(--shadow-lg) !important;
+        border: none !important;
         transition: all 0.2s ease !important;
     }
     
     [data-testid="collapsedControl"]:hover {
-        background: var(--accent-teal-light) !important;
+        background: var(--accent-green-dark) !important;
         transform: scale(1.05) !important;
-        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
     }
     
     [data-testid="collapsedControl"] svg {
@@ -369,56 +403,74 @@ def get_custom_css() -> str:
     
     /* Sidebar expand/collapse button when sidebar is open */
     [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
-        background: rgba(16, 185, 129, 0.15) !important;
+        background: rgba(5, 150, 105, 0.1) !important;
         border-radius: 8px !important;
-        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        border: 1px solid rgba(5, 150, 105, 0.2) !important;
         transition: all 0.2s ease !important;
     }
     
     [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
-        background: rgba(16, 185, 129, 0.25) !important;
-        border-color: rgba(16, 185, 129, 0.5) !important;
+        background: rgba(5, 150, 105, 0.15) !important;
+        border-color: rgba(5, 150, 105, 0.3) !important;
     }
     
     [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] svg {
-        color: var(--accent-teal) !important;
+        color: var(--accent-green) !important;
     }
     
-    /* ===== NAVIGATION BUTTON STYLES ===== */
+    /* ===== NAVIGATION SECTION STYLES (Compact line-divided list) ===== */
+    [data-testid="stSidebar"] .stButton {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
     [data-testid="stSidebar"] button {
-        width: 100%;
-        background: linear-gradient(135deg, #1E293B 0%, rgba(30, 41, 59, 0.9) 100%) !important;
-        border: 1px solid #334155 !important;
-        border-radius: 10px !important;
-        padding: 0.875rem 1rem !important;
-        margin-bottom: 0.5rem !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        border-radius: 0 !important;
+        padding: 0.75rem 1rem !important;
+        margin: 0 !important;
         text-align: left !important;
         font-weight: 500 !important;
-        color: #E2E8F0 !important;
+        color: var(--text-primary) !important;
         font-size: 0.875rem !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.15s ease !important;
         box-shadow: none !important;
+        min-height: unset !important;
+        height: auto !important;
+        line-height: 1.4 !important;
     }
     
     [data-testid="stSidebar"] button:hover {
-        background: linear-gradient(135deg, #334155 0%, rgba(51, 65, 85, 0.9) 100%) !important;
-        border-color: #475569 !important;
-        transform: translateX(4px);
+        background: rgba(5, 150, 105, 0.08) !important;
+        color: var(--accent-green) !important;
     }
     
     [data-testid="stSidebar"] button[kind="primary"] {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%) !important;
-        border-color: rgba(16, 185, 129, 0.4) !important;
-        color: #10B981 !important;
+        background: rgba(5, 150, 105, 0.1) !important;
+        color: var(--accent-green) !important;
         font-weight: 600 !important;
+        border-left: 3px solid var(--accent-green) !important;
     }
     
     [data-testid="stSidebar"] button[kind="primary"]:hover {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%) !important;
-        border-color: rgba(16, 185, 129, 0.5) !important;
+        background: rgba(5, 150, 105, 0.15) !important;
     }
     
     [data-testid="stSidebar"] button p {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* Remove extra spacing between button containers */
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div {
+        gap: 0 !important;
+    }
+    
+    [data-testid="stSidebar"] .element-container {
         margin: 0 !important;
         padding: 0 !important;
     }
@@ -429,6 +481,7 @@ def get_custom_css() -> str:
         background: var(--bg-secondary);
         padding: 0.5rem;
         border-radius: 12px;
+        border: 1px solid var(--border-color);
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -440,7 +493,7 @@ def get_custom_css() -> str:
     }
     
     .stTabs [aria-selected="true"] {
-        background: var(--accent-teal) !important;
+        background: var(--accent-green) !important;
         color: white !important;
     }
     
@@ -449,6 +502,7 @@ def get_custom_css() -> str:
         background: var(--bg-secondary);
         border-radius: 8px;
         font-weight: 500;
+        color: var(--text-primary);
     }
     
     /* ===== CHART CONTAINERS ===== */
@@ -461,7 +515,7 @@ def get_custom_css() -> str:
     
     /* ===== GOAL CARDS ===== */
     .goal-card {
-        background: var(--bg-secondary);
+        background: var(--bg-card);
         border-radius: 12px;
         padding: 1.25rem;
         border: 1px solid var(--border-color);
@@ -485,7 +539,7 @@ def get_custom_css() -> str:
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
         background: var(--accent-gold);
-        color: var(--bg-primary);
+        color: white;
         border-radius: 4px;
         font-weight: 600;
     }
@@ -500,8 +554,61 @@ def get_custom_css() -> str:
     
     /* ===== CUSTOM SELECTBOX ===== */
     .stSelectbox > div > div {
-        background: var(--bg-secondary);
-        border-color: var(--border-color);
+        background: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    /* Selectbox dropdown menu */
+    [data-baseweb="select"] > div {
+        background-color: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+    }
+    
+    [data-baseweb="popover"] {
+        background-color: var(--bg-card) !important;
+    }
+    
+    [data-baseweb="popover"] > div {
+        background-color: var(--bg-card) !important;
+    }
+    
+    /* Dropdown menu list */
+    [data-baseweb="menu"] {
+        background-color: var(--bg-card) !important;
+    }
+    
+    [data-baseweb="menu"] li {
+        background-color: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    [data-baseweb="menu"] li:hover {
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    /* Selected option in dropdown */
+    [data-baseweb="menu"] [aria-selected="true"] {
+        background-color: rgba(5, 150, 105, 0.1) !important;
+    }
+    
+    /* Selectbox text */
+    [data-baseweb="select"] span {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Selectbox icon */
+    [data-baseweb="select"] svg {
+        fill: var(--text-secondary) !important;
+    }
+    
+    /* ===== TEXT COLORS FOR LIGHT THEME ===== */
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary) !important;
+    }
+    
+    p, span, div {
+        color: var(--text-primary);
     }
     
     /* ===== ANIMATIONS ===== */
@@ -539,13 +646,13 @@ def get_custom_css() -> str:
 def get_status_color(status: str) -> str:
     """Get color for a health status."""
     colors = {
-        "excellent": "#10B981",
-        "good": "#3B82F6",
-        "fair": "#F59E0B",
-        "poor": "#F97316",
-        "critical": "#EF4444"
+        "excellent": "#059669",
+        "good": "#0284C7",
+        "fair": "#D97706",
+        "poor": "#EA580C",
+        "critical": "#DC2626"
     }
-    return colors.get(status.lower(), "#94A3B8")
+    return colors.get(status.lower(), "#64748B")
 
 
 def get_status_class(status: str) -> str:

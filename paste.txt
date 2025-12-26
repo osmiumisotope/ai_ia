@@ -1,0 +1,41 @@
+This is a good draft. Here are the changes I want you to make in this plan:
+
+For clients table: 
+Instead of age, we'll use date of birth. 
+Remove dependents column
+Add another column called : primary flag. We'll use this to define whether a user is primary or a dependent. 
+Add another column : Primary UUID. This will contain the UUID of primary holder for a dependent. 
+Add column: Gender assigned at birth. This is required so that we can use correct projections for life expectancy
+
+The structure of asset_snapshot doesn't seem right to me. I think it's better to create it like this: 
+Schema Name: ACCOUNTS
+Table: HOLDINGS
+Description: This table has mapping of all the current holdings of an account 
+Columns: Security Identifier, quantity, account_id
+
+TABLE: ACCOUNT_OWNER
+Description: This table holds the mapping for account owner and account id 
+Columns: UUID, account_id, account type name
+
+Table: ACCOUNT_TYPES 
+Description: This table describes account characteristics. This does not contain user information or a specific account id information but is a description of account types in general
+Columns: account type name, tax advantaged, roth, liquid
+
+TRANSACTIONS:
+Description: This is a ledger type account for cash expenses
+Date
+Type
+Amount
+Debit/Credit
+Description
+
+TABLE : DOCUMENTS:
+Type:
+File Name:
+Hash:
+Customer UID:
+Upload Time:
+
+For goals table we need to allocate accounts to them as well. So add columns which will help with that. 
+
+Goal progress history table is not required. We need to show current values and historical values don't matter. 

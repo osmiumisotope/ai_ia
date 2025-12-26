@@ -65,14 +65,14 @@ def main():
     # Sidebar for client selection and navigation
     with st.sidebar:
         st.markdown("""
-        <div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem; border-bottom: 1px solid #334155;">
-            <h2 style="color: #10B981; margin: 0; font-size: 1.25rem;">WealthView</h2>
-            <p style="color: #94A3B8; font-size: 0.75rem; margin-top: 0.25rem;">Financial Advisory Platform</p>
+        <div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0;">
+            <h2 style="color: #059669; margin: 0; font-size: 1.25rem;">WealthView</h2>
+            <p style="color: #64748B; font-size: 0.75rem; margin-top: 0.25rem;">Financial Advisory Platform</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Client selector
-        st.markdown("<p style='font-size: 0.875rem; color: #94A3B8; margin-bottom: 0.5rem;'>Select Client</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 0.875rem; color: #475569; margin-bottom: 0.5rem;'>Select Client</p>", unsafe_allow_html=True)
         clients = get_all_sample_clients()
         client_options = {
             f"{data.profile.name} ({cid})": cid 
@@ -89,24 +89,24 @@ def main():
         
         # Display client quick info - clean design without icons
         st.markdown(f"""
-        <div style="background: #1E293B; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #E2E8F0;">
             <div style="font-size: 0.7rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Client Profile</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.8rem;">
                 <div>
                     <div style="color: #64748B; font-size: 0.7rem;">Age</div>
-                    <div style="color: #F1F5F9; font-weight: 500;">{client_data.profile.age}</div>
+                    <div style="color: #1E293B; font-weight: 500;">{client_data.profile.age}</div>
                 </div>
                 <div>
                     <div style="color: #64748B; font-size: 0.7rem;">Retirement</div>
-                    <div style="color: #F1F5F9; font-weight: 500;">{client_data.profile.retirement_age}</div>
+                    <div style="color: #1E293B; font-weight: 500;">{client_data.profile.retirement_age}</div>
                 </div>
                 <div>
                     <div style="color: #64748B; font-size: 0.7rem;">Dependents</div>
-                    <div style="color: #F1F5F9; font-weight: 500;">{client_data.profile.dependents}</div>
+                    <div style="color: #1E293B; font-weight: 500;">{client_data.profile.dependents}</div>
                 </div>
                 <div>
                     <div style="color: #64748B; font-size: 0.7rem;">State</div>
-                    <div style="color: #F1F5F9; font-weight: 500;">{client_data.profile.state}</div>
+                    <div style="color: #1E293B; font-weight: 500;">{client_data.profile.state}</div>
                 </div>
             </div>
         </div>
@@ -115,7 +115,7 @@ def main():
         st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
         
         # Navigation with clickable cards
-        st.markdown("<p style='font-size: 0.7rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;'>Navigation</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 0.7rem; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;'>Navigation</p>", unsafe_allow_html=True)
         
         # Initialize session state for selected section
         if 'selected_section' not in st.session_state:
@@ -215,36 +215,48 @@ def render_overview(client_data, overall_score, foundation, cashflow, portfolio,
     st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
     
     # Section score cards
-    st.markdown("### 📊 Section Health Scores")
+    st.markdown("""
+    <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">Section Health Scores</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Performance breakdown across key financial areas</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     sections = [
-        ("🛡️ Financial Foundation", foundation),
-        ("💰 Cash Flow", cashflow),
-        ("📊 Portfolio", portfolio),
-        ("🎯 Planning", planning),
-        ("📋 Estate", estate)
+        ("Foundation", "Safety & Debt", foundation),
+        ("Cash Flow", "Income & Spending", cashflow),
+        ("Portfolio", "Investments", portfolio),
+        ("Planning", "Goals & Future", planning),
+        ("Estate", "Legacy", estate)
     ]
     
     cols = st.columns(5)
-    for i, (title, summary) in enumerate(sections):
+    for i, (title, subtitle, summary) in enumerate(sections):
         with cols[i]:
             score = summary['overall_score']
             status = summary['overall_status']
             color = {
-                HealthStatus.EXCELLENT: '#10B981',
-                HealthStatus.GOOD: '#3B82F6',
-                HealthStatus.FAIR: '#F59E0B',
-                HealthStatus.POOR: '#F97316',
-                HealthStatus.CRITICAL: '#EF4444'
-            }.get(status, '#94A3B8')
+                HealthStatus.EXCELLENT: '#059669',
+                HealthStatus.GOOD: '#0284C7',
+                HealthStatus.FAIR: '#D97706',
+                HealthStatus.POOR: '#EA580C',
+                HealthStatus.CRITICAL: '#DC2626'
+            }.get(status, '#64748B')
+            
+            # Calculate progress for visual bar
+            progress_pct = min(100, score)
             
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #1E293B 0%, rgba(30, 41, 59, 0.8) 100%); 
-                        padding: 1.25rem; border-radius: 12px; border: 1px solid #334155; text-align: center;">
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.5rem;">{title}</div>
-                <div style="font-size: 2rem; font-weight: 700; color: {color};">{score:.0f}</div>
-                <div style="font-size: 0.75rem; color: {color}; text-transform: uppercase; margin-top: 0.25rem;">
-                    {status.value}
+            <div style="background: #FFFFFF; padding: 1.25rem; border-radius: 12px; border: 1px solid #E2E8F0; 
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #F1F5F9;">
+                    <div style="height: 100%; width: {progress_pct}%; background: {color}; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: #1E293B; margin-bottom: 0.125rem;">{title}</div>
+                <div style="font-size: 0.65rem; color: #94A3B8; margin-bottom: 0.75rem;">{subtitle}</div>
+                <div style="display: flex; align-items: baseline; gap: 0.375rem;">
+                    <span style="font-size: 1.75rem; font-weight: 700; color: {color}; line-height: 1;">{score:.0f}</span>
+                    <span style="font-size: 0.65rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.03em;">{status.value}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -255,7 +267,12 @@ def render_overview(client_data, overall_score, foundation, cashflow, portfolio,
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 💰 Asset Allocation")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">Asset Allocation</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Current portfolio distribution</p>
+        </div>
+        """, unsafe_allow_html=True)
         allocation_data = {
             'US Stocks': client_data.portfolio_allocation.us_stocks,
             'Int\'l Stocks': client_data.portfolio_allocation.international_stocks,
@@ -271,7 +288,12 @@ def render_overview(client_data, overall_score, foundation, cashflow, portfolio,
         render_allocation_chart(allocation_data)
     
     with col2:
-        st.markdown("### 🎯 Goal Progress")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">Goal Progress</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Tracking towards financial milestones</p>
+        </div>
+        """, unsafe_allow_html=True)
         goals_data = [
             {
                 'name': goal.name,
@@ -286,7 +308,12 @@ def render_overview(client_data, overall_score, foundation, cashflow, portfolio,
         render_goal_progress(goals_data)
     
     # Key recommendations
-    st.markdown("### 💡 Priority Recommendations")
+    st.markdown("""
+    <div style="margin-bottom: 1rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">Priority Recommendations</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Action items requiring attention</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     all_recommendations = []
     for summary in [foundation, cashflow, portfolio, planning, estate]:
@@ -300,19 +327,22 @@ def render_overview(client_data, overall_score, foundation, cashflow, portfolio,
     
     if all_recommendations:
         for rec in all_recommendations[:5]:  # Show top 5
-            color = '#EF4444' if rec['severity'] == 'critical' else '#F97316'
+            color = '#DC2626' if rec['severity'] == 'critical' else '#EA580C'
             st.markdown(f"""
-            <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; 
-                        background: rgba({239 if rec['severity'] == 'critical' else 249}, 
-                                        {68 if rec['severity'] == 'critical' else 115}, 
-                                        {68 if rec['severity'] == 'critical' else 22}, 0.1); 
-                        border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid {color};">
-                <span style="color: {color}; font-size: 1rem;">⚠️</span>
-                <span style="font-size: 0.875rem; color: #F1F5F9;">{rec['text']}</span>
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem; 
+                        background: #FFFFFF; 
+                        border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid {color};
+                        border: 1px solid #E2E8F0; border-left: 3px solid {color};">
+                <span style="font-size: 0.875rem; color: #334155; line-height: 1.5;">{rec['text']}</span>
             </div>
             """, unsafe_allow_html=True)
     else:
-        st.success("🎉 No critical recommendations - financial health looks good!")
+        st.markdown("""
+        <div style="padding: 1rem; background: rgba(5, 150, 105, 0.08); border-radius: 8px; 
+                    border: 1px solid rgba(5, 150, 105, 0.2); text-align: center;">
+            <span style="font-size: 0.875rem; color: #059669; font-weight: 500;">No critical recommendations — financial health looks good!</span>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def render_foundation_section(summary, client_data):
@@ -404,24 +434,28 @@ def render_cashflow_section(summary, client_data):
         render_expense_breakdown(expense_categories, client_data.income.monthly_income)
     
     with col2:
-        st.markdown("### 💵 Income vs Expenses")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h4 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">Income vs Expenses</h4>
+        </div>
+        """, unsafe_allow_html=True)
         monthly_income = client_data.income.monthly_income
         monthly_expenses = client_data.expenses.total_monthly_expenses
         monthly_savings = monthly_income - monthly_expenses
         
         st.markdown(f"""
-        <div style="background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155;">
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <div style="margin-bottom: 1.5rem;">
-                <div style="font-size: 0.75rem; color: #94A3B8; text-transform: uppercase;">Monthly Income</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #10B981;">${monthly_income:,.0f}</div>
+                <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase;">Monthly Income</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #059669;">${monthly_income:,.0f}</div>
             </div>
             <div style="margin-bottom: 1.5rem;">
-                <div style="font-size: 0.75rem; color: #94A3B8; text-transform: uppercase;">Monthly Expenses</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #F97316;">${monthly_expenses:,.0f}</div>
+                <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase;">Monthly Expenses</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #EA580C;">${monthly_expenses:,.0f}</div>
             </div>
-            <div style="padding-top: 1rem; border-top: 1px solid #334155;">
-                <div style="font-size: 0.75rem; color: #94A3B8; text-transform: uppercase;">Monthly Savings</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: {'#10B981' if monthly_savings > 0 else '#EF4444'};">
+            <div style="padding-top: 1rem; border-top: 1px solid #E2E8F0;">
+                <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase;">Monthly Savings</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: {'#059669' if monthly_savings > 0 else '#DC2626'};">
                     ${monthly_savings:,.0f}
                 </div>
             </div>
@@ -433,15 +467,15 @@ def render_cashflow_section(summary, client_data):
         discretionary = client_data.expenses.discretionary_expenses
         
         st.markdown(f"""
-        <div style="background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155; margin-top: 1rem;">
-            <div style="font-size: 0.875rem; color: #F1F5F9; margin-bottom: 1rem; font-weight: 600;">Expense Split</div>
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-top: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="font-size: 0.875rem; color: #1E293B; margin-bottom: 1rem; font-weight: 600;">Expense Split</div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-                <span style="color: #94A3B8;">Fixed/Essential</span>
-                <span style="color: #3B82F6; font-weight: 600;">${fixed:,.0f}</span>
+                <span style="color: #475569;">Fixed/Essential</span>
+                <span style="color: #0284C7; font-weight: 600;">${fixed:,.0f}</span>
             </div>
             <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94A3B8;">Discretionary</span>
-                <span style="color: #F59E0B; font-weight: 600;">${discretionary:,.0f}</span>
+                <span style="color: #475569;">Discretionary</span>
+                <span style="color: #D97706; font-weight: 600;">${discretionary:,.0f}</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -466,7 +500,11 @@ def render_portfolio_section(summary, client_data):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 📊 Current Allocation")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h4 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">Current Allocation</h4>
+        </div>
+        """, unsafe_allow_html=True)
         allocation = {
             'US Stocks': client_data.portfolio_allocation.us_stocks,
             'Int\'l Stocks': client_data.portfolio_allocation.international_stocks,
@@ -481,42 +519,46 @@ def render_portfolio_section(summary, client_data):
         render_allocation_chart(allocation)
     
     with col2:
-        st.markdown("### 📈 Portfolio Metrics")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h4 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">Portfolio Metrics</h4>
+        </div>
+        """, unsafe_allow_html=True)
         metrics = client_data.portfolio_metrics
         
         st.markdown(f"""
-        <div style="background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #334155;">
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #E2E8F0;">
                 <div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">Expense Ratio</div>
-                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#10B981' if metrics.weighted_expense_ratio < 0.3 else '#F59E0B'};">
+                    <div style="font-size: 0.75rem; color: #64748B;">Expense Ratio</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#059669' if metrics.weighted_expense_ratio < 0.3 else '#D97706'};">
                         {metrics.weighted_expense_ratio:.2f}%
                     </div>
                 </div>
                 <div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">Annual Turnover</div>
-                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#10B981' if metrics.annual_turnover < 30 else '#F59E0B'};">
+                    <div style="font-size: 0.75rem; color: #64748B;">Annual Turnover</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#059669' if metrics.annual_turnover < 30 else '#D97706'};">
                         {metrics.annual_turnover:.0f}%
                     </div>
                 </div>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #E2E8F0;">
                 <div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">Tax Efficiency</div>
-                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#10B981' if metrics.tax_efficiency_score > 70 else '#F59E0B'};">
+                    <div style="font-size: 0.75rem; color: #64748B;">Tax Efficiency</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#059669' if metrics.tax_efficiency_score > 70 else '#D97706'};">
                         {metrics.tax_efficiency_score}/100
                     </div>
                 </div>
                 <div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">Diversification</div>
-                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#10B981' if metrics.concentration_score > 70 else '#F59E0B'};">
+                    <div style="font-size: 0.75rem; color: #64748B;">Diversification</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; color: {'#059669' if metrics.concentration_score > 70 else '#D97706'};">
                         {metrics.concentration_score}/100
                     </div>
                 </div>
             </div>
             <div>
-                <div style="font-size: 0.75rem; color: #94A3B8;">Trades (12 months)</div>
-                <div style="font-size: 1.25rem; font-weight: 600; color: {'#10B981' if metrics.trades_last_12_months < 24 else '#F59E0B'};">
+                <div style="font-size: 0.75rem; color: #64748B;">Trades (12 months)</div>
+                <div style="font-size: 1.25rem; font-weight: 600; color: {'#059669' if metrics.trades_last_12_months < 24 else '#D97706'};">
                     {metrics.trades_last_12_months}
                 </div>
             </div>
@@ -529,11 +571,13 @@ def render_portfolio_section(summary, client_data):
             company_pct = (client_data.assets.company_stock_total / total_inv * 100) if total_inv > 0 else 0
             
             st.markdown(f"""
-            <div style="background: {'rgba(239, 68, 68, 0.1)' if company_pct > 20 else 'rgba(245, 158, 11, 0.1)'}; 
+            <div style="background: {'rgba(220, 38, 38, 0.08)' if company_pct > 20 else 'rgba(217, 119, 6, 0.08)'}; 
                         padding: 1rem; border-radius: 8px; margin-top: 1rem; 
-                        border: 1px solid {'rgba(239, 68, 68, 0.3)' if company_pct > 20 else 'rgba(245, 158, 11, 0.3)'};">
-                <div style="font-size: 0.875rem; color: #F1F5F9; font-weight: 600;">⚠️ Company Stock Exposure</div>
-                <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 0.5rem;">
+                        border-left: 3px solid {'#DC2626' if company_pct > 20 else '#D97706'};
+                        border: 1px solid {'rgba(220, 38, 38, 0.2)' if company_pct > 20 else 'rgba(217, 119, 6, 0.2)'};
+                        border-left: 3px solid {'#DC2626' if company_pct > 20 else '#D97706'};">
+                <div style="font-size: 0.8rem; font-weight: 600; color: {'#DC2626' if company_pct > 20 else '#D97706'}; text-transform: uppercase; letter-spacing: 0.03em;">Company Stock Exposure</div>
+                <div style="font-size: 0.875rem; color: #334155; margin-top: 0.375rem;">
                     ${client_data.assets.company_stock_total:,.0f} ({company_pct:.1f}% of portfolio)
                 </div>
             </div>
@@ -590,7 +634,12 @@ def render_planning_section(summary, planning_calc, client_data):
     st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
     
     # Goal progress
-    st.markdown("### 🎯 Financial Goals")
+    st.markdown("""
+    <div style="margin-bottom: 1rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">Financial Goals</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Progress toward your savings targets</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     cols = st.columns(len(client_data.goals)) if len(client_data.goals) <= 3 else st.columns(3)
     
@@ -605,7 +654,12 @@ def render_planning_section(summary, planning_calc, client_data):
     st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
     
     # Scenario analysis
-    st.markdown("### 🔮 What-If Scenarios")
+    st.markdown("""
+    <div style="margin-bottom: 1rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1E293B; margin: 0; letter-spacing: -0.01em;">What-If Scenarios</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.25rem;">Explore how changes affect your retirement</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -647,15 +701,17 @@ def render_planning_section(summary, planning_calc, client_data):
         render_metric_card("Projected Outcome", scenario, show_recommendations=True)
         
         if scenario.trend:
-            change_color = '#10B981' if scenario.trend > 0 else '#EF4444'
+            change_color = '#059669' if scenario.trend > 0 else '#DC2626'
+            bg_r = 5 if scenario.trend > 0 else 220
+            bg_g = 150 if scenario.trend > 0 else 38
+            bg_b = 105 if scenario.trend > 0 else 38
             st.markdown(f"""
-            <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: rgba({16 if scenario.trend > 0 else 239}, 
-                        {185 if scenario.trend > 0 else 68}, {129 if scenario.trend > 0 else 68}, 0.1); 
-                        border-radius: 8px;">
+            <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: rgba({bg_r}, {bg_g}, {bg_b}, 0.08); 
+                        border-radius: 8px; border: 1px solid rgba({bg_r}, {bg_g}, {bg_b}, 0.2);">
                 <span style="font-size: 1.5rem; color: {change_color};">
                     {'+' if scenario.trend > 0 else ''}{scenario.trend:.1f}%
                 </span>
-                <div style="font-size: 0.75rem; color: #94A3B8;">vs Base Case</div>
+                <div style="font-size: 0.75rem; color: #475569;">vs Base Case</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -680,7 +736,12 @@ def render_estate_section(summary, client_data):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 📋 Document Checklist")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h4 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">Document Checklist</h4>
+            <p style="font-size: 0.75rem; color: #64748B; margin-top: 0.125rem;">Essential estate documents</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         estate = client_data.estate
         documents = [
@@ -693,48 +754,54 @@ def render_estate_section(summary, client_data):
         ]
         
         for doc_name, has_doc, description in documents:
-            icon = "✅" if has_doc else "❌"
-            color = "#10B981" if has_doc else "#EF4444"
-            bg_color = "rgba(16, 185, 129, 0.1)" if has_doc else "rgba(239, 68, 68, 0.1)"
+            color = "#059669" if has_doc else "#DC2626"
+            bg_color = "rgba(5, 150, 105, 0.06)" if has_doc else "rgba(220, 38, 38, 0.06)"
+            border_color = "#059669" if has_doc else "#DC2626"
             
             st.markdown(f"""
-            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; 
-                        background: {bg_color}; border-radius: 8px; margin-bottom: 0.5rem;">
-                <span style="font-size: 1.25rem;">{icon}</span>
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; 
+                        background: {bg_color}; border-radius: 8px; margin-bottom: 0.5rem;
+                        border-left: 3px solid {border_color};">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: {color}; flex-shrink: 0;"></div>
                 <div>
-                    <div style="font-size: 0.875rem; color: {color}; font-weight: 600;">{doc_name}</div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">{description}</div>
+                    <div style="font-size: 0.8rem; color: #1E293B; font-weight: 600;">{doc_name}</div>
+                    <div style="font-size: 0.7rem; color: #64748B;">{description}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("### 👥 Beneficiary Status")
+        st.markdown("""
+        <div style="margin-bottom: 0.75rem;">
+            <h4 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">Beneficiary Status</h4>
+            <p style="font-size: 0.75rem; color: #64748B; margin-top: 0.125rem;">Account designations</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if estate.beneficiaries_updated:
-            status_icon = "✅"
             status_text = "Up to date"
-            status_color = "#10B981"
+            status_color = "#059669"
+            indicator_bg = "rgba(5, 150, 105, 0.1)"
         else:
-            status_icon = "⚠️"
             status_text = "Review needed"
-            status_color = "#F59E0B"
+            status_color = "#D97706"
+            indicator_bg = "rgba(217, 119, 6, 0.1)"
         
         last_review = estate.beneficiaries_last_reviewed
         review_text = last_review.strftime("%B %d, %Y") if last_review else "Never"
         
         st.markdown(f"""
-        <div style="background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155;">
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-                <span style="font-size: 1.5rem;">{status_icon}</span>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: {status_color};"></div>
                 <div>
-                    <div style="font-size: 1rem; color: {status_color}; font-weight: 600;">{status_text}</div>
-                    <div style="font-size: 0.75rem; color: #94A3B8;">Last reviewed: {review_text}</div>
+                    <div style="font-size: 0.9rem; color: {status_color}; font-weight: 600;">{status_text}</div>
+                    <div style="font-size: 0.75rem; color: #64748B;">Last reviewed: {review_text}</div>
                 </div>
             </div>
-            <div style="padding-top: 1rem; border-top: 1px solid #334155;">
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.5rem;">Accounts to Review:</div>
-                <div style="font-size: 0.8rem; color: #F1F5F9;">
+            <div style="padding-top: 1rem; border-top: 1px solid #E2E8F0;">
+                <div style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.5rem;">Accounts to Review:</div>
+                <div style="font-size: 0.8rem; color: #1E293B;">
         """, unsafe_allow_html=True)
         
         accounts = []
@@ -757,21 +824,28 @@ def render_estate_section(summary, client_data):
             years_old = (client_data.estate.will_last_updated.today() - estate.will_last_updated).days / 365
             
             if years_old > 5:
-                will_status = "⚠️ Will may need review"
-                will_color = "#F59E0B"
+                will_status = "Will may need review"
+                will_color = "#D97706"
+                border_color = "#D97706"
             elif years_old > 3:
-                will_status = "📝 Consider reviewing will"
-                will_color = "#3B82F6"
+                will_status = "Consider reviewing will"
+                will_color = "#0284C7"
+                border_color = "#0284C7"
             else:
-                will_status = "✅ Will recently updated"
-                will_color = "#10B981"
+                will_status = "Will recently updated"
+                will_color = "#059669"
+                border_color = "#059669"
             
+            bg_r = 217 if years_old > 3 else 5
+            bg_g = 119 if years_old > 3 else 150
+            bg_b = 6 if years_old > 3 else 105
             st.markdown(f"""
-            <div style="background: rgba({245 if years_old > 3 else 16}, {158 if years_old > 3 else 185}, {11 if years_old > 3 else 129}, 0.1); 
+            <div style="background: rgba({bg_r}, {bg_g}, {bg_b}, 0.08); 
                         padding: 1rem; border-radius: 8px; margin-top: 1rem; 
-                        border: 1px solid rgba({245 if years_old > 3 else 16}, {158 if years_old > 3 else 185}, {11 if years_old > 3 else 129}, 0.3);">
-                <div style="font-size: 0.875rem; color: {will_color}; font-weight: 600;">{will_status}</div>
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 0.25rem;">
+                        border: 1px solid rgba({bg_r}, {bg_g}, {bg_b}, 0.2);
+                        border-left: 3px solid {border_color};">
+                <div style="font-size: 0.8rem; font-weight: 600; color: {will_color};">{will_status}</div>
+                <div style="font-size: 0.75rem; color: #475569; margin-top: 0.25rem;">
                     Last updated: {estate.will_last_updated.strftime("%B %Y")} ({years_old:.1f} years ago)
                 </div>
             </div>

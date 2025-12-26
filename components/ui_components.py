@@ -42,15 +42,15 @@ def render_net_worth_summary(client_data: ClientData):
         <div class="networth-value">${net_worth:,.0f}</div>
         <div class="networth-breakdown">
             <div class="breakdown-item">
-                <div class="breakdown-value" style="color: #10B981;">${total_assets:,.0f}</div>
+                <div class="breakdown-value" style="color: #059669;">${total_assets:,.0f}</div>
                 <div class="breakdown-label">Total Assets</div>
             </div>
             <div class="breakdown-item">
-                <div class="breakdown-value" style="color: #EF4444;">${total_liabilities:,.0f}</div>
+                <div class="breakdown-value" style="color: #DC2626;">${total_liabilities:,.0f}</div>
                 <div class="breakdown-label">Total Liabilities</div>
             </div>
             <div class="breakdown-item">
-                <div class="breakdown-value" style="color: #3B82F6;">${liquid_nw:,.0f}</div>
+                <div class="breakdown-value" style="color: #0284C7;">${liquid_nw:,.0f}</div>
                 <div class="breakdown-label">Liquid Net Worth</div>
             </div>
         </div>
@@ -68,16 +68,16 @@ def render_section_header(title: str, question: str, score: float, status: Healt
     with col1:
         st.markdown(f"""
         <div style="margin-bottom: 0.5rem;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; color: #F1F5F9; margin: 0;">{title}</h2>
-            <p style="font-size: 0.875rem; color: #94A3B8; font-style: italic; margin-top: 0.25rem;">"{question}"</p>
+            <h2 style="font-size: 1.25rem; font-weight: 600; color: #1E293B; margin: 0;">{title}</h2>
+            <p style="font-size: 0.875rem; color: #475569; font-style: italic; margin-top: 0.25rem;">"{question}"</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div class="score-ring-container">
-            <div class="score-ring" style="background: conic-gradient({status_color} {score * 3.6}deg, #334155 0deg);">
-                <div style="background: #1E293B; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <div class="score-ring" style="background: conic-gradient({status_color} {score * 3.6}deg, #E2E8F0 0deg);">
+                <div style="background: #FFFFFF; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #1E293B; border: 1px solid #E2E8F0;">
                     {score:.0f}
                 </div>
             </div>
@@ -104,7 +104,7 @@ def render_metric_card(label: str, metric: MetricResult, show_recommendations: b
     delta_html = ""
     if metric.delta is not None and metric.delta_is_positive is not None:
         arrow = "↑" if metric.delta_is_positive else "↓"
-        arrow_color = "#10B981" if metric.delta_is_positive else "#EF4444"
+        arrow_color = "#059669" if metric.delta_is_positive else "#DC2626"
         # Format delta based on the metric type (percentage vs absolute)
         if '%' in metric.display_value:
             delta_display = f"{metric.delta:.1f}%"
@@ -163,16 +163,16 @@ def render_allocation_chart(allocation: Dict[str, float], title: str = "Portfoli
     labels = list(allocation.keys())
     values = list(allocation.values())
     
-    # Custom colors for categories
+    # Custom colors for categories - vibrant for light theme
     colors = [
-        '#10B981',  # US Stocks - Teal
-        '#3B82F6',  # International Stocks - Blue
-        '#8B5CF6',  # Bonds - Purple
-        '#F59E0B',  # Real Estate - Gold
-        '#EC4899',  # Commodities - Pink
-        '#6B7280',  # Cash - Gray
-        '#14B8A6',  # Alternatives - Cyan
-        '#F97316',  # Crypto - Orange
+        '#059669',  # US Stocks - Green
+        '#0284C7',  # International Stocks - Blue
+        '#7C3AED',  # Bonds - Purple
+        '#D97706',  # Real Estate - Gold
+        '#DB2777',  # Commodities - Pink
+        '#64748B',  # Cash - Gray
+        '#0D9488',  # Alternatives - Teal
+        '#EA580C',  # Crypto - Orange
     ]
     
     fig = go.Figure(data=[go.Pie(
@@ -182,25 +182,25 @@ def render_allocation_chart(allocation: Dict[str, float], title: str = "Portfoli
         marker_colors=colors[:len(labels)],
         textinfo='label+percent',
         textposition='outside',
-        textfont=dict(size=12, color='#F1F5F9'),
+        textfont=dict(size=12, color='#1E293B'),
         hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>'
     )])
     
     fig.update_layout(
         title=dict(
             text=title,
-            font=dict(size=16, color='#F1F5F9'),
+            font=dict(size=16, color='#1E293B'),
             x=0.5
         ),
         showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(255,255,255,0)',
+        plot_bgcolor='rgba(255,255,255,0)',
         margin=dict(t=50, b=20, l=20, r=20),
         height=350,
         annotations=[dict(
             text='Allocation',
             x=0.5, y=0.5,
-            font=dict(size=14, color='#94A3B8'),
+            font=dict(size=14, color='#475569'),
             showarrow=False
         )]
     )
@@ -208,9 +208,14 @@ def render_allocation_chart(allocation: Dict[str, float], title: str = "Portfoli
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal_progress(goals: List[Dict], title: str = "Goal Progress"):
+def render_goal_progress(goals: List[Dict], title: str = ""):
     """Render goal progress cards."""
-    st.markdown(f"### {title}")
+    if title:
+        st.markdown(f"""
+        <div style="margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0;">{title}</h3>
+        </div>
+        """, unsafe_allow_html=True)
     
     for goal in goals:
         progress = (goal['current'] / goal['target']) * 100 if goal['target'] > 0 else 0
@@ -247,10 +252,10 @@ def render_expense_breakdown(expenses: Dict[str, float], income: float):
         y=list(sorted_expenses.keys()),
         x=list(sorted_expenses.values()),
         orientation='h',
-        marker_color='#10B981',
+        marker_color='#059669',
         text=[f'${v:,.0f}' for v in sorted_expenses.values()],
         textposition='outside',
-        textfont=dict(color='#F1F5F9', size=11),
+        textfont=dict(color='#1E293B', size=11),
         hovertemplate='<b>%{y}</b><br>$%{x:,.0f}<br>%{customdata:.1f}% of income<extra></extra>',
         customdata=[v/income*100 for v in sorted_expenses.values()]
     ))
@@ -258,22 +263,22 @@ def render_expense_breakdown(expenses: Dict[str, float], income: float):
     fig.update_layout(
         title=dict(
             text='Monthly Expense Breakdown',
-            font=dict(size=16, color='#F1F5F9'),
+            font=dict(size=16, color='#1E293B'),
             x=0
         ),
         xaxis=dict(
             title='Amount ($)',
-            title_font=dict(color='#94A3B8'),
-            tickfont=dict(color='#94A3B8'),
-            gridcolor='#334155',
+            title_font=dict(color='#475569'),
+            tickfont=dict(color='#475569'),
+            gridcolor='#E2E8F0',
             showgrid=True
         ),
         yaxis=dict(
-            tickfont=dict(color='#F1F5F9', size=11),
+            tickfont=dict(color='#1E293B', size=11),
             autorange='reversed'
         ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(255,255,255,0)',
+        plot_bgcolor='rgba(255,255,255,0)',
         margin=dict(t=50, b=40, l=120, r=80),
         height=400
     )
@@ -315,9 +320,9 @@ def render_retirement_projection_chart(
         y=projected_values,
         mode='lines',
         name='Projected Savings',
-        line=dict(color='#10B981', width=3),
+        line=dict(color='#059669', width=3),
         fill='tozeroy',
-        fillcolor='rgba(16, 185, 129, 0.1)'
+        fillcolor='rgba(5, 150, 105, 0.1)'
     ))
     
     # Target line
@@ -326,13 +331,13 @@ def render_retirement_projection_chart(
         y=[target_amount, target_amount],
         mode='lines',
         name='Target',
-        line=dict(color='#F59E0B', width=2, dash='dash')
+        line=dict(color='#D97706', width=2, dash='dash')
     ))
     
     # Retirement marker
     fig.add_vline(
         x=retirement_age,
-        line=dict(color='#EF4444', width=2, dash='dot'),
+        line=dict(color='#DC2626', width=2, dash='dot'),
         annotation_text='Retirement',
         annotation_position='top'
     )
@@ -340,27 +345,27 @@ def render_retirement_projection_chart(
     fig.update_layout(
         title=dict(
             text='Retirement Projection',
-            font=dict(size=16, color='#F1F5F9'),
+            font=dict(size=16, color='#1E293B'),
             x=0
         ),
         xaxis=dict(
             title='Age',
-            title_font=dict(color='#94A3B8'),
-            tickfont=dict(color='#94A3B8'),
-            gridcolor='#334155'
+            title_font=dict(color='#475569'),
+            tickfont=dict(color='#475569'),
+            gridcolor='#E2E8F0'
         ),
         yaxis=dict(
             title='Portfolio Value ($)',
-            title_font=dict(color='#94A3B8'),
-            tickfont=dict(color='#94A3B8'),
-            gridcolor='#334155',
+            title_font=dict(color='#475569'),
+            tickfont=dict(color='#475569'),
+            gridcolor='#E2E8F0',
             tickformat='$,.0f'
         ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(255,255,255,0)',
+        plot_bgcolor='rgba(255,255,255,0)',
         legend=dict(
-            font=dict(color='#F1F5F9'),
-            bgcolor='rgba(0,0,0,0)'
+            font=dict(color='#1E293B'),
+            bgcolor='rgba(255,255,255,0)'
         ),
         margin=dict(t=50, b=40, l=80, r=40),
         height=350
@@ -383,18 +388,18 @@ def render_asset_breakdown_chart(assets: Dict[str, float], title: str = "Asset B
     
     categories, values = zip(*data)
     
-    # Custom colors for categories
+    # Custom colors for categories - vibrant for light theme
     colors = [
-        '#10B981',  # Teal
-        '#3B82F6',  # Blue
-        '#8B5CF6',  # Purple
-        '#F59E0B',  # Gold
-        '#EC4899',  # Pink
-        '#14B8A6',  # Cyan
-        '#F97316',  # Orange
-        '#6366F1',  # Indigo
-        '#84CC16',  # Lime
-        '#EF4444',  # Red
+        '#059669',  # Green
+        '#0284C7',  # Blue
+        '#7C3AED',  # Purple
+        '#D97706',  # Gold
+        '#DB2777',  # Pink
+        '#0D9488',  # Teal
+        '#EA580C',  # Orange
+        '#4F46E5',  # Indigo
+        '#65A30D',  # Lime
+        '#DC2626',  # Red
     ]
     
     # Calculate total for percentage display
@@ -407,25 +412,25 @@ def render_asset_breakdown_chart(assets: Dict[str, float], title: str = "Asset B
         marker_colors=colors[:len(categories)],
         textinfo='label+percent',
         textposition='outside',
-        textfont=dict(size=11, color='#F1F5F9'),
+        textfont=dict(size=11, color='#1E293B'),
         hovertemplate='<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>'
     )])
     
     fig.update_layout(
         title=dict(
             text=title,
-            font=dict(size=16, color='#F1F5F9'),
+            font=dict(size=16, color='#1E293B'),
             x=0.5
         ),
         showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(255,255,255,0)',
+        plot_bgcolor='rgba(255,255,255,0)',
         margin=dict(t=50, b=20, l=20, r=20),
         height=400,
         annotations=[dict(
             text=f'${total:,.0f}',
             x=0.5, y=0.5,
-            font=dict(size=16, color='#F1F5F9', weight=600),
+            font=dict(size=16, color='#1E293B', weight=600),
             showarrow=False
         )]
     )
@@ -436,40 +441,40 @@ def render_asset_breakdown_chart(assets: Dict[str, float], title: str = "Asset B
 def render_health_score_gauge(score: float, label: str = "Overall Financial Health"):
     """Render a gauge chart for overall health score."""
     if score >= 85:
-        color = '#10B981'
+        color = '#059669'
     elif score >= 65:
-        color = '#3B82F6'
+        color = '#0284C7'
     elif score >= 45:
-        color = '#F59E0B'
+        color = '#D97706'
     elif score >= 25:
-        color = '#F97316'
+        color = '#EA580C'
     else:
-        color = '#EF4444'
+        color = '#DC2626'
     
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=score,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': label, 'font': {'size': 16, 'color': '#F1F5F9'}},
-        number={'font': {'size': 40, 'color': '#F1F5F9'}},
+        title={'text': label, 'font': {'size': 16, 'color': '#1E293B'}},
+        number={'font': {'size': 40, 'color': '#1E293B'}},
         gauge={
-            'axis': {'range': [0, 100], 'tickfont': {'color': '#94A3B8'}},
+            'axis': {'range': [0, 100], 'tickfont': {'color': '#475569'}},
             'bar': {'color': color},
-            'bgcolor': '#334155',
+            'bgcolor': '#E2E8F0',
             'borderwidth': 0,
             'steps': [
-                {'range': [0, 25], 'color': 'rgba(239, 68, 68, 0.2)'},
-                {'range': [25, 45], 'color': 'rgba(249, 115, 22, 0.2)'},
-                {'range': [45, 65], 'color': 'rgba(245, 158, 11, 0.2)'},
-                {'range': [65, 85], 'color': 'rgba(59, 130, 246, 0.2)'},
-                {'range': [85, 100], 'color': 'rgba(16, 185, 129, 0.2)'}
+                {'range': [0, 25], 'color': 'rgba(220, 38, 38, 0.15)'},
+                {'range': [25, 45], 'color': 'rgba(234, 88, 12, 0.15)'},
+                {'range': [45, 65], 'color': 'rgba(217, 119, 6, 0.15)'},
+                {'range': [65, 85], 'color': 'rgba(2, 132, 199, 0.15)'},
+                {'range': [85, 100], 'color': 'rgba(5, 150, 105, 0.15)'}
             ]
         }
     ))
     
     fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(255,255,255,0)',
+        plot_bgcolor='rgba(255,255,255,0)',
         margin=dict(t=80, b=40, l=40, r=40),
         height=280
     )
