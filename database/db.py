@@ -359,6 +359,98 @@ def get_client_transactions(
 
 
 # ============================================
+# Profile update queries
+# ============================================
+
+def update_client_profile(
+    client_id: str,
+    data: Dict[str, Any],
+    db_path: Optional[str] = None
+) -> int:
+    """Update a client's profile information."""
+    return update_record('clients', client_id, data, db_path)
+
+
+# ============================================
+# Dependents queries
+# ============================================
+
+def get_client_dependents(client_id: str, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get all dependents for a client."""
+    return fetch_all(
+        "SELECT * FROM dependents WHERE client_id = ? ORDER BY name",
+        (client_id,),
+        db_path
+    )
+
+
+def add_dependent(
+    client_id: str,
+    data: Dict[str, Any],
+    db_path: Optional[str] = None
+) -> str:
+    """Add a new dependent for a client."""
+    data['client_id'] = client_id
+    return insert_record('dependents', data, db_path)
+
+
+def update_dependent(
+    dependent_id: str,
+    data: Dict[str, Any],
+    db_path: Optional[str] = None
+) -> int:
+    """Update a dependent's information."""
+    return update_record('dependents', dependent_id, data, db_path)
+
+
+def delete_dependent(dependent_id: str, db_path: Optional[str] = None) -> int:
+    """Delete a dependent."""
+    return delete_record('dependents', dependent_id, db_path)
+
+
+# ============================================
+# Document queries
+# ============================================
+
+def get_client_documents(client_id: str, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get all documents for a client."""
+    return fetch_all(
+        "SELECT * FROM documents WHERE client_id = ? ORDER BY upload_time DESC",
+        (client_id,),
+        db_path
+    )
+
+
+def get_document_by_id(document_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Get a document by ID."""
+    return fetch_one("SELECT * FROM documents WHERE id = ?", (document_id,), db_path)
+
+
+def add_document(
+    client_id: str,
+    data: Dict[str, Any],
+    db_path: Optional[str] = None
+) -> str:
+    """Add a new document for a client."""
+    data['client_id'] = client_id
+    return insert_record('documents', data, db_path)
+
+
+def delete_document(document_id: str, db_path: Optional[str] = None) -> int:
+    """Delete a document record."""
+    return delete_record('documents', document_id, db_path)
+
+
+def get_document_by_hash(file_hash: str, client_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Check if a document with the same hash already exists for a client."""
+    return fetch_one(
+        "SELECT * FROM documents WHERE file_hash = ? AND client_id = ?",
+        (file_hash, client_id),
+        db_path
+    )
+
+
+# ============================================
 # Aggregation queries
 # ============================================
 

@@ -13,6 +13,9 @@ This separation makes it easy to port to React or any other frontend.
 import streamlit as st
 import sys
 import os
+import hashlib
+from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -47,10 +50,431 @@ from components import (
 # Import sample data
 from data import get_all_sample_clients, get_historical_expenses
 
+# Import database functions for profile management
+from database.db import (
+    update_client_profile,
+    get_client_dependents,
+    add_dependent,
+    update_dependent,
+    delete_dependent,
+    get_client_documents,
+    add_document,
+    delete_document,
+    get_document_by_hash,
+    get_document_by_id,
+    get_client_by_id
+)
+
+# Uploads directory
+UPLOADS_DIR = Path(project_root) / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+
+
+def calculate_file_hash(file_content: bytes) -> str:
+    """Calculate SHA-256 hash of file content."""
+    return hashlib.sha256(file_content).hexdigest()
+
+
+def render_profile_section(client_id: str, client_data):
+    """Render the Profile section with tabs in the main panel."""
+    # Section header
+    st.markdown("""
+    <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 600; color: #1E293B; margin: 0;">Profile Management</h2>
+        <p style="font-size: 0.875rem; color: #475569; margin-top: 0.25rem;">Manage personal information, dependents, and documents</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents"])
+    
+    with tab1:
+        render_personal_info_tab(client_id, client_data)
+    
+    with tab2:
+        render_dependents_tab(client_id)
+    
+    with tab3:
+        render_documents_tab(client_id)
+
+
+def render_personal_info_tab(client_id: str, client_data):
+    """Render the Personal Info tab."""
+    # Get current client data from database
+    client_row = get_client_by_id(client_id)
+    
+    if not client_row:
+        st.error("Client not found")
+        return
+    
+    st.markdown("""
+    <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Edit Personal Information</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Update your profile details below</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form(key="personal_info_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Date of birth (for age calculation)
+            current_dob = client_row.get('date_of_birth', '')
+            if current_dob:
+                try:
+                    dob_date = datetime.strptime(current_dob, '%Y-%m-%d').date()
+                except:
+                    dob_date = datetime.now().date()
+            else:
+                dob_date = datetime.now().date()
+            
+            date_of_birth = st.date_input(
+                "Date of Birth",
+                value=dob_date,
+                help="Used to calculate age"
+            )
+            
+            # Gender
+            gender_options = ['male', 'female']
+            current_gender = client_row.get('gender_at_birth', 'male')
+            gender_index = gender_options.index(current_gender) if current_gender in gender_options else 0
+            
+            gender = st.selectbox(
+                "Gender",
+                options=gender_options,
+                index=gender_index,
+                format_func=lambda x: x.capitalize()
+            )
+            
+            # Retirement Age
+            retirement_age = st.number_input(
+                "Retirement Age",
+                min_value=50,
+                max_value=80,
+                value=client_row.get('retirement_age', 65) or 65
+            )
+        
+        with col2:
+            # Risk Tolerance
+            risk_options = ['low', 'moderate', 'high', 'critical']
+            current_risk = client_row.get('risk_tolerance', 'moderate')
+            risk_index = risk_options.index(current_risk) if current_risk in risk_options else 1
+            
+            risk_tolerance = st.selectbox(
+                "Risk Tolerance",
+                options=risk_options,
+                index=risk_index,
+                format_func=lambda x: x.capitalize()
+            )
+            
+            # Marital Status
+            marital_options = ['single', 'married', 'divorced', 'widowed', 'domestic_partnership']
+            current_marital = client_row.get('marital_status', 'single')
+            marital_index = marital_options.index(current_marital) if current_marital in marital_options else 0
+            
+            marital_status = st.selectbox(
+                "Marital Status",
+                options=marital_options,
+                index=marital_index,
+                format_func=lambda x: x.replace('_', ' ').capitalize()
+            )
+            
+            # State
+            us_states = [
+                'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+                'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+                'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+                'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+                'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+            ]
+            current_state = client_row.get('state', 'CA')
+            state_index = us_states.index(current_state) if current_state in us_states else us_states.index('CA')
+            
+            state = st.selectbox(
+                "State",
+                options=us_states,
+                index=state_index
+            )
+        
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("💾 Save Changes", use_container_width=True)
+        
+        if submitted:
+            try:
+                update_data = {
+                    'date_of_birth': date_of_birth.strftime('%Y-%m-%d'),
+                    'gender_at_birth': gender,
+                    'retirement_age': retirement_age,
+                    'risk_tolerance': risk_tolerance,
+                    'marital_status': marital_status,
+                    'state': state
+                }
+                update_client_profile(client_id, update_data)
+                st.success("✅ Profile updated successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error updating profile: {e}")
+
+
+def render_dependents_tab(client_id: str):
+    """Render the Dependents tab."""
+    # Get existing dependents
+    dependents = get_client_dependents(client_id)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        # Add new dependent section
+        st.markdown("""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Add New Dependent</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Enter dependent details below</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form(key="add_dependent_form", clear_on_submit=True):
+            dep_name = st.text_input("Name", placeholder="Enter dependent's name")
+            
+            relationship = st.selectbox(
+                "Relationship",
+                options=['child', 'spouse', 'parent', 'sibling', 'other'],
+                format_func=lambda x: x.capitalize()
+            )
+            
+            dep_dob = st.date_input("Date of Birth", value=None)
+            
+            fcol1, fcol2 = st.columns(2)
+            with fcol1:
+                is_financially_dependent = st.checkbox("Financially Dependent", value=True)
+            with fcol2:
+                special_needs = st.checkbox("Special Needs", value=False)
+            
+            dep_notes = st.text_area("Notes", placeholder="Optional notes...", height=80)
+            
+            add_submitted = st.form_submit_button("➕ Add Dependent", use_container_width=True)
+            
+            if add_submitted and dep_name:
+                try:
+                    dep_data = {
+                        'name': dep_name,
+                        'relationship': relationship,
+                        'date_of_birth': dep_dob.strftime('%Y-%m-%d') if dep_dob else None,
+                        'is_financially_dependent': is_financially_dependent,
+                        'special_needs': special_needs,
+                        'notes': dep_notes if dep_notes else None
+                    }
+                    add_dependent(client_id, dep_data)
+                    st.success(f"✅ Added {dep_name} as dependent!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error adding dependent: {e}")
+    
+    with col2:
+        # Display existing dependents
+        st.markdown("""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Current Dependents</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Manage existing dependents</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if dependents:
+            for dep in dependents:
+                dep_id = dep['id']
+                with st.expander(f"**{dep['name']}** ({dep['relationship'].capitalize()})", expanded=False):
+                    # Calculate age if DOB available
+                    age_str = ""
+                    if dep.get('date_of_birth'):
+                        try:
+                            dob = datetime.strptime(dep['date_of_birth'], '%Y-%m-%d').date()
+                            today = datetime.now().date()
+                            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                            age_str = f" (Age: {age})"
+                        except:
+                            pass
+                    
+                    st.markdown(f"""
+                    <div style="font-size: 0.85rem; color: #475569;">
+                        <div style="margin-bottom: 0.5rem;"><strong>Relationship:</strong> {dep['relationship'].capitalize()}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Date of Birth:</strong> {dep.get('date_of_birth', 'Not specified')}{age_str}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Financially Dependent:</strong> {'Yes' if dep.get('is_financially_dependent') else 'No'}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Special Needs:</strong> {'Yes' if dep.get('special_needs') else 'No'}</div>
+                        {f"<div style='margin-bottom: 0.5rem;'><strong>Notes:</strong> {dep.get('notes')}</div>" if dep.get('notes') else ""}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🗑️ Delete Dependent", key=f"del_dep_{dep_id}", use_container_width=True):
+                        try:
+                            delete_dependent(dep_id)
+                            st.success(f"Deleted {dep['name']}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error deleting dependent: {e}")
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 2rem; color: #94A3B8;">
+                <p style="font-size: 0.9rem;">No dependents added yet</p>
+                <p style="font-size: 0.8rem;">Use the form on the left to add dependents</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+def render_documents_tab(client_id: str):
+    """Render the Documents tab."""
+    # Document type options (matching the database schema)
+    doc_type_options = {
+        'will': 'Will',
+        'trust': 'Trust Document',
+        'poa': 'Power of Attorney',
+        'statement': 'Financial Statement',
+        'tax_return': 'Tax Return',
+        'insurance_policy': 'Insurance Policy',
+        'other': 'Other Document'
+    }
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Upload New Document</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Supported: PDF, DOC, DOCX, JPG, PNG, TXT</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Document type selector
+        doc_type = st.selectbox(
+            "Document Type",
+            options=list(doc_type_options.keys()),
+            format_func=lambda x: doc_type_options[x]
+        )
+        
+        # File uploader
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            type=['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'txt'],
+            help="Select a document to upload"
+        )
+        
+        if uploaded_file is not None:
+            # Calculate file hash
+            file_content = uploaded_file.read()
+            file_hash = calculate_file_hash(file_content)
+            uploaded_file.seek(0)  # Reset file pointer
+            
+            # Check if document already exists
+            existing_doc = get_document_by_hash(file_hash, client_id)
+            
+            if existing_doc:
+                st.warning(f"⚠️ This file has already been uploaded on {existing_doc.get('upload_time', 'unknown date')}")
+            else:
+                if st.button("📤 Upload Document", use_container_width=True):
+                    try:
+                        # Create client-specific directory
+                        client_dir = UPLOADS_DIR / client_id
+                        client_dir.mkdir(exist_ok=True)
+                        
+                        # Generate unique filename
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        safe_filename = f"{timestamp}_{uploaded_file.name}"
+                        file_path = client_dir / safe_filename
+                        
+                        # Save file
+                        with open(file_path, 'wb') as f:
+                            f.write(file_content)
+                        
+                        # Add document record to database
+                        doc_data = {
+                            'document_type': doc_type,
+                            'file_name': uploaded_file.name,
+                            'file_hash': file_hash,
+                            'storage_path': str(file_path),
+                            'uploaded_by': 'user'
+                        }
+                        add_document(client_id, doc_data)
+                        
+                        st.success(f"✅ Document '{uploaded_file.name}' uploaded successfully!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error uploading document: {e}")
+    
+    with col2:
+        # Display existing documents
+        documents = get_client_documents(client_id)
+        
+        st.markdown("""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Uploaded Documents</h3>
+            <p style="font-size: 0.8rem; color: #64748B; margin: 0;">View and manage your documents</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if documents:
+            for doc in documents:
+                doc_id = doc['id']
+                doc_type_label = doc_type_options.get(doc['document_type'], 'Document')
+                upload_time = doc.get('upload_time', 'Unknown')
+                
+                # Format upload time
+                try:
+                    if isinstance(upload_time, str):
+                        upload_dt = datetime.fromisoformat(upload_time)
+                        upload_time_formatted = upload_dt.strftime('%b %d, %Y %I:%M %p')
+                    else:
+                        upload_time_formatted = str(upload_time)
+                except:
+                    upload_time_formatted = str(upload_time)
+                
+                with st.expander(f"📄 {doc['file_name']}", expanded=False):
+                    st.markdown(f"""
+                    <div style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem;">
+                        <div style="margin-bottom: 0.4rem;"><strong>Type:</strong> {doc_type_label}</div>
+                        <div style="margin-bottom: 0.4rem;"><strong>Uploaded:</strong> {upload_time_formatted}</div>
+                        <div><strong>File Hash:</strong> <code style="font-size: 0.7rem; background: #F1F5F9; padding: 0.1rem 0.3rem; border-radius: 4px;">{doc.get('file_hash', 'N/A')[:20]}...</code></div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    bcol1, bcol2 = st.columns(2)
+                    
+                    # Download button
+                    storage_path = doc.get('storage_path')
+                    if storage_path and Path(storage_path).exists():
+                        with open(storage_path, 'rb') as f:
+                            file_data = f.read()
+                        with bcol1:
+                            st.download_button(
+                                label="⬇️ Download",
+                                data=file_data,
+                                file_name=doc['file_name'],
+                                key=f"download_{doc_id}",
+                                use_container_width=True
+                            )
+                    
+                    # Delete button
+                    with bcol2:
+                        if st.button("🗑️ Delete", key=f"del_doc_{doc_id}", use_container_width=True):
+                            try:
+                                # Delete file from disk
+                                if storage_path and Path(storage_path).exists():
+                                    Path(storage_path).unlink()
+                                
+                                # Delete record from database
+                                delete_document(doc_id)
+                                st.success("Document deleted")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error deleting document: {e}")
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 2rem; color: #94A3B8;">
+                <p style="font-size: 0.9rem;">No documents uploaded yet</p>
+                <p style="font-size: 0.8rem;">Use the form on the left to upload documents</p>
+            </div>
+            """, unsafe_allow_html=True)
+
 # Page configuration
 st.set_page_config(
     page_title="Financial Health Dashboard",
-    page_icon="💎",
+    page_icon="logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -127,7 +551,8 @@ def main():
             ("Cash Flow & Spending", "Income, expenses, and savings"),
             ("Portfolio Health", "Investment allocation and risk"),
             ("Future Planning", "Retirement and goal tracking"),
-            ("Estate Readiness", "Legacy and estate documents")
+            ("Estate Readiness", "Legacy and estate documents"),
+            ("Profile", "Personal info, dependents & documents")
         ]
         
         for nav_name, nav_desc in nav_items:
@@ -198,6 +623,8 @@ def main():
         render_planning_section(planning_summary, planning_calc, client_data)
     elif selected_section == "Estate Readiness":
         render_estate_section(estate_summary, client_data)
+    elif selected_section == "Profile":
+        render_profile_section(selected_client_id, client_data)
 
 
 def render_overview(client_data, overall_score, foundation, cashflow, portfolio, planning, estate):

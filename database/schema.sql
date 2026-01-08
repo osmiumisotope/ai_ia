@@ -228,6 +228,23 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 -- ============================================
+-- DEPENDENTS TABLE
+-- Client dependents (children, elderly parents, etc.)
+-- ============================================
+CREATE TABLE IF NOT EXISTS dependents (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL REFERENCES clients(id),
+    name TEXT NOT NULL,
+    relationship TEXT CHECK(relationship IN ('child', 'spouse', 'parent', 'sibling', 'other')) NOT NULL,
+    date_of_birth DATE,
+    is_financially_dependent BOOLEAN DEFAULT TRUE,
+    special_needs BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_clients_primary_uuid ON clients(primary_uuid);
@@ -248,3 +265,4 @@ CREATE INDEX IF NOT EXISTS idx_goal_allocations_goal ON goal_account_allocations
 CREATE INDEX IF NOT EXISTS idx_goal_allocations_account ON goal_account_allocations(account_id);
 CREATE INDEX IF NOT EXISTS idx_estate_planning_client ON estate_planning(client_id);
 CREATE INDEX IF NOT EXISTS idx_documents_client ON documents(client_id);
+CREATE INDEX IF NOT EXISTS idx_dependents_client ON dependents(client_id);

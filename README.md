@@ -33,7 +33,12 @@ LLM Advisor/
 │   └── ui_components.py     # Reusable UI components
 ├── data/                     # Data layer
 │   ├── __init__.py
-│   └── sample_clients.py    # Sample client data
+│   └── client_loader.py     # Client data loader from database
+├── database/                 # Database layer
+│   ├── __init__.py
+│   ├── db.py                # Database operations
+│   ├── schema.sql           # Database schema
+│   └── seed_data.sql        # Initial seed data
 └── requirements.txt
 ```
 
@@ -68,13 +73,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Sample Clients
+## Clients
 
-The dashboard includes 3 sample clients with different financial profiles:
-
-1. **Sarah Chen** - High-earning tech professional (age 38)
-2. **Marcus Williams** - Mid-career professional (age 45)  
-3. **Jennifer & David Park** - Pre-retirees (age 58)
+Client data is loaded from the SQLite database. The database is automatically initialized with seed data when the application starts. You can add additional clients by inserting data into the database tables.
 
 ## Customization
 
