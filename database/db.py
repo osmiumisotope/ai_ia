@@ -450,6 +450,19 @@ def get_document_by_hash(file_hash: str, client_id: str, db_path: Optional[str] 
     )
 
 
+def get_document_content(document_id: str, db_path: Optional[str] = None) -> Optional[bytes]:
+    """Retrieve the binary file content for a document from the database."""
+    with get_db_context(db_path) as conn:
+        cursor = conn.execute(
+            "SELECT file_content FROM documents WHERE id = ?",
+            (document_id,)
+        )
+        row = cursor.fetchone()
+        if row and row['file_content']:
+            return bytes(row['file_content'])
+    return None
+
+
 # ============================================
 # Aggregation queries
 # ============================================

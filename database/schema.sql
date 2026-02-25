@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS documents (
     file_name TEXT NOT NULL,
     file_hash TEXT,
     storage_path TEXT,
+    file_content BLOB,
     upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     uploaded_by TEXT
 );

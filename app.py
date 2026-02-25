@@ -14,6 +14,7 @@ import streamlit as st
 import sys
 import os
 import hashlib
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from dateutil.relativedelta import relativedelta
@@ -63,7 +64,8 @@ from database.db import (
     delete_document,
     get_document_by_hash,
     get_document_by_id,
-    get_client_by_id
+    get_client_by_id,
+    get_document_content
 )
 
 # Uploads directory
@@ -383,16 +385,21 @@ def render_documents_tab(client_id: str):
                         safe_filename = f"{timestamp}_{uploaded_file.name}"
                         file_path = client_dir / safe_filename
                         
-                        # Save file
-                        with open(file_path, 'wb') as f:
-                            f.write(file_content)
+                        # Save file to disk (best-effort for local usage)
+                        try:
+                            with open(file_path, 'wb') as f:
+                                f.write(file_content)
+                            disk_path = str(file_path)
+                        except OSError:
+                            disk_path = None
                         
-                        # Add document record to database
+                        # Add document record to database (with file bytes)
                         doc_data = {
                             'document_type': doc_type,
                             'file_name': uploaded_file.name,
                             'file_hash': file_hash,
-                            'storage_path': str(file_path),
+                            'storage_path': disk_path,
+                            'file_content': file_content,
                             'uploaded_by': 'user'
                         }
                         add_document(client_id, doc_data)
@@ -440,11 +447,16 @@ def render_documents_tab(client_id: str):
                     
                     bcol1, bcol2 = st.columns(2)
                     
-                    # Download button
+                    # Download button — try disk first, fall back to DB content
                     storage_path = doc.get('storage_path')
+                    file_data = None
                     if storage_path and Path(storage_path).exists():
                         with open(storage_path, 'rb') as f:
                             file_data = f.read()
+                    else:
+                        file_data = get_document_content(doc_id)
+
+                    if file_data:
                         with bcol1:
                             st.download_button(
                                 label="⬇️ Download",
@@ -499,16 +511,26 @@ def render_disability_analysis_tab(client_id: str, client_data):
     )
     
     if selected_doc:
+        doc_id = selected_doc['id']
+        
+        # Retrieve file content: try disk first, then fall back to database
         storage_path = selected_doc.get('storage_path')
-        if not storage_path or not Path(storage_path).exists():
-            st.error("Document file not found on disk.")
+        file_bytes = None
+        if storage_path and Path(storage_path).exists():
+            with open(storage_path, 'rb') as f:
+                file_bytes = f.read()
+        else:
+            file_bytes = get_document_content(doc_id)
+        
+        if not file_bytes:
+            st.error("Document content not available. Please re-upload the document in the Documents tab.")
             return
             
         if st.button("Analyze Document", type="primary"):
             with st.spinner("Extracting policy details using Gemini..."):
                 try:
                     from logic.llm_extractor import extract_disability_policy
-                    policy = extract_disability_policy(storage_path)
+                    policy = extract_disability_policy(file_bytes, selected_doc.get('file_name', 'document.pdf'))
                     st.session_state[f'disability_policy_{client_id}'] = policy
                     st.success("Policy details extracted successfully!")
                 except Exception as e:

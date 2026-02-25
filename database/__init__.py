@@ -25,6 +25,7 @@ from .db import (
     get_client_estate_planning,
     get_client_portfolio_metrics,
     get_client_transactions,
+    get_document_content,
 )
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "get_client_estate_planning",
     "get_client_portfolio_metrics",
     "get_client_transactions",
+    "get_document_content",
 ]

@@ -1,5 +1,6 @@
 import os
 import json
+import tempfile
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -37,40 +38,50 @@ INSTRUCTIONS:
 5. Output ONLY valid JSON. If a value is not explicitly stated, use `null` or `false`.
 """
 
-def extract_disability_policy(file_path: str) -> GroupDisabilityPolicy:
+def extract_disability_policy(file_content: bytes, file_name: str = "document.pdf") -> GroupDisabilityPolicy:
     # Initialize the client with the API key from secrets/env
     api_key = _get_gemini_api_key()
     client = genai.Client(api_key=api_key)
     
-    # Upload the file to Gemini
-    uploaded_file = client.files.upload(file=file_path)
+    # Write content to a temp file so the Gemini SDK can upload it
+    suffix = os.path.splitext(file_name)[1] or ".pdf"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(file_content)
+        tmp_path = tmp.name
     
     try:
-        # Call the model
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[
-                uploaded_file,
-                "Extract the disability policy details from this document."
-            ],
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                response_schema=GroupDisabilityPolicy,
-                temperature=0.1,
-            ),
-        )
+        # Upload the temp file to Gemini
+        uploaded_file = client.files.upload(file=tmp_path)
         
-        # Parse the JSON response
-        if hasattr(response, 'parsed') and response.parsed:
-            return response.parsed
+        try:
+            # Call the model
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=[
+                    uploaded_file,
+                    "Extract the disability policy details from this document."
+                ],
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    response_mime_type="application/json",
+                    response_schema=GroupDisabilityPolicy,
+                    temperature=0.1,
+                ),
+            )
             
-        data = json.loads(response.text)
-        
-        # Validate with Pydantic
-        policy = GroupDisabilityPolicy(**data)
-        return policy
-        
+            # Parse the JSON response
+            if hasattr(response, 'parsed') and response.parsed:
+                return response.parsed
+                
+            data = json.loads(response.text)
+            
+            # Validate with Pydantic
+            policy = GroupDisabilityPolicy(**data)
+            return policy
+            
+        finally:
+            # Clean up the uploaded file from Gemini
+            client.files.delete(name=uploaded_file.name)
     finally:
-        # Clean up the uploaded file
-        client.files.delete(name=uploaded_file.name)
+        # Clean up the temp file from disk
+        os.unlink(tmp_path)
