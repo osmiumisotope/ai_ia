@@ -76,6 +76,9 @@ def init_database(db_path: Optional[str] = None, seed_data: bool = False) -> boo
                 schema_sql = f.read()
             conn.executescript(schema_sql)
             
+            # --- Migrations: add columns that may be missing on older DBs ---
+            _run_migrations(conn)
+            
             # Optionally load seed data
             if seed_data and SEED_DATA_PATH.exists():
                 with open(SEED_DATA_PATH, 'r') as f:
@@ -86,6 +89,15 @@ def init_database(db_path: Optional[str] = None, seed_data: bool = False) -> boo
     except Exception as e:
         print(f"Error initializing database: {e}")
         return False
+
+
+def _run_migrations(conn):
+    """Apply any missing schema migrations to an existing database."""
+    # Migration: add file_content BLOB to documents table
+    cursor = conn.execute("PRAGMA table_info(documents)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'file_content' not in columns:
+        conn.execute("ALTER TABLE documents ADD COLUMN file_content BLOB")
 
 
 def execute_query(
