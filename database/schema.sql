@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS estate_planning (
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     client_id TEXT NOT NULL REFERENCES clients(id),
-    document_type TEXT CHECK(document_type IN ('will', 'trust', 'poa', 'statement', 'tax_return', 'insurance_policy', 'other')) NOT NULL,
+    document_type TEXT CHECK(document_type IN ('will', 'trust', 'poa', 'statement', 'tax_return', 'insurance_policy', 'disability_insurance', 'other')) NOT NULL,
     file_name TEXT NOT NULL,
     file_hash TEXT,
     storage_path TEXT,

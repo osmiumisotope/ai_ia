@@ -1,9 +1,29 @@
 import os
 import json
+import streamlit as st
 from google import genai
 from google.genai import types
 from pydantic import ValidationError
 from .disability import GroupDisabilityPolicy
+
+
+def _get_gemini_api_key() -> str:
+    """Retrieve the Gemini API key from Streamlit secrets (Cloud/local) or env var."""
+    # 1. Streamlit secrets (works on Cloud + locally via .streamlit/secrets.toml)
+    try:
+        return st.secrets["GEMINI_API_KEY"]
+    except (KeyError, FileNotFoundError):
+        pass
+
+    # 2. Fall back to environment variable
+    key = os.environ.get("GEMINI_API_KEY")
+    if key:
+        return key
+
+    raise RuntimeError(
+        "GEMINI_API_KEY not found. Set it in .streamlit/secrets.toml "
+        "or as an environment variable."
+    )
 
 SYSTEM_PROMPT = """You are an expert insurance actuary and data extraction assistant specializing in Group Long-Term Disability (LTD) policies. 
 
@@ -18,8 +38,9 @@ INSTRUCTIONS:
 """
 
 def extract_disability_policy(file_path: str) -> GroupDisabilityPolicy:
-    # Initialize the client. It will automatically use the GEMINI_API_KEY environment variable.
-    client = genai.Client()
+    # Initialize the client with the API key from secrets/env
+    api_key = _get_gemini_api_key()
+    client = genai.Client(api_key=api_key)
     
     # Upload the file to Gemini
     uploaded_file = client.files.upload(file=file_path)

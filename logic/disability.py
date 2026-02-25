@@ -61,15 +61,39 @@ class DisabilityCashFlowModel:
         
     def calculate_insurable_earnings(self) -> float:
         monthly_earnings = 0.0
-        if self.policy.earnings_definition.includes_base_salary:
-            monthly_earnings += self.inputs.get('annual_base_salary', 0) / 12
-        if self.policy.earnings_definition.includes_bonuses:
-            monthly_earnings += self.inputs.get('annual_bonus', 0) / 12
+        ed = self.policy.earnings_definition
+        any_component_flagged = (
+            ed.includes_base_salary or ed.includes_bonuses
+            or ed.includes_commissions or ed.includes_overtime
+        )
+
+        if any_component_flagged:
+            # Use only the explicitly included components
+            if ed.includes_base_salary:
+                monthly_earnings += self.inputs.get('annual_base_salary', 0) / 12
+            if ed.includes_bonuses:
+                monthly_earnings += self.inputs.get('annual_bonus', 0) / 12
+        else:
+            # No components explicitly flagged by the LLM — fall back to
+            # treating all provided earnings as covered (base + bonus).
+            monthly_earnings = (
+                self.inputs.get('annual_base_salary', 0)
+                + self.inputs.get('annual_bonus', 0)
+            ) / 12
+
         return monthly_earnings
 
+    def _normalize_replacement_rate(self) -> float:
+        """Return the replacement rate as a decimal (e.g. 0.60 for 60%)."""
+        rate = self.policy.benefit_parameters.replacement_percentage
+        # If the LLM returned a percentage value (e.g. 60), convert to decimal
+        if rate > 1:
+            return rate / 100.0
+        return rate
+
     def generate_timeline(self) -> pd.DataFrame:
-        disability_date = self.inputs['date_of_disability']
-        dob = self.inputs['date_of_birth']
+        disability_date = pd.Timestamp(self.inputs['date_of_disability'])
+        dob = pd.Timestamp(self.inputs['date_of_birth'])
         
         ep_days = self.policy.benefit_parameters.elimination_period_days
         benefit_start_date = disability_date + relativedelta(days=ep_days)
@@ -81,8 +105,9 @@ class DisabilityCashFlowModel:
         
         # 1. Map Gross Benefit
         insurable_earnings = self.calculate_insurable_earnings()
+        replacement_rate = self._normalize_replacement_rate()
         gross_benefit = min(
-            insurable_earnings * self.policy.benefit_parameters.replacement_percentage,
+            insurable_earnings * replacement_rate,
             self.policy.benefit_parameters.maximum_monthly_benefit
         )
         df['Gross_Benefit'] = np.where(df.index >= benefit_start_date, gross_benefit, 0.0)
