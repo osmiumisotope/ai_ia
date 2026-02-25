@@ -16,6 +16,7 @@ import os
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from dateutil.relativedelta import relativedelta
 
 # Add project root to path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +86,7 @@ def render_profile_section(client_id: str, client_data):
     </div>
     """, unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents"])
+    tab1, tab2, tab3, tab4 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents", "🏥 Disability Analysis"])
     
     with tab1:
         render_personal_info_tab(client_id, client_data)
@@ -95,6 +96,9 @@ def render_profile_section(client_id: str, client_data):
     
     with tab3:
         render_documents_tab(client_id)
+        
+    with tab4:
+        render_disability_analysis_tab(client_id, client_data)
 
 
 def render_personal_info_tab(client_id: str, client_data):
@@ -328,6 +332,7 @@ def render_documents_tab(client_id: str):
         'statement': 'Financial Statement',
         'tax_return': 'Tax Return',
         'insurance_policy': 'Insurance Policy',
+        'disability_insurance': 'Disability Insurance',
         'other': 'Other Document'
     }
     
@@ -470,6 +475,97 @@ def render_documents_tab(client_id: str):
                 <p style="font-size: 0.8rem;">Use the form on the left to upload documents</p>
             </div>
             """, unsafe_allow_html=True)
+
+def render_disability_analysis_tab(client_id: str, client_data):
+    """Render the Disability Analysis tab."""
+    st.markdown("""
+    <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Disability Insurance Analysis</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Analyze uploaded disability insurance policies and project cash flows.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    documents = get_client_documents(client_id)
+    disability_docs = [doc for doc in documents if doc.get('document_type') == 'disability_insurance']
+    
+    if not disability_docs:
+        st.info("No Disability Insurance documents found. Please upload one in the Documents tab.")
+        return
+        
+    selected_doc = st.selectbox(
+        "Select Disability Insurance Document",
+        options=disability_docs,
+        format_func=lambda x: x['file_name']
+    )
+    
+    if selected_doc:
+        storage_path = selected_doc.get('storage_path')
+        if not storage_path or not Path(storage_path).exists():
+            st.error("Document file not found on disk.")
+            return
+            
+        if st.button("Analyze Document", type="primary"):
+            with st.spinner("Extracting policy details using Gemini..."):
+                try:
+                    from logic.llm_extractor import extract_disability_policy
+                    policy = extract_disability_policy(storage_path)
+                    st.session_state[f'disability_policy_{client_id}'] = policy
+                    st.success("Policy details extracted successfully!")
+                except Exception as e:
+                    st.error(f"Error extracting policy details: {e}")
+                    return
+                    
+        policy = st.session_state.get(f'disability_policy_{client_id}')
+        if policy:
+            st.markdown("### Extracted Policy Details")
+            st.json(policy.model_dump())
+            
+            st.markdown("### Cash Flow Projection")
+            with st.form("disability_inputs"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    annual_base_salary = st.number_input("Annual Base Salary", value=float(client_data.income.total_annual_income))
+                    annual_bonus = st.number_input("Annual Bonus", value=0.0)
+                    aime = st.number_input("AIME (Average Indexed Monthly Earnings)", value=5000.0)
+                with col2:
+                    date_of_disability = st.date_input("Date of Disability", value=datetime.now().date())
+                    monthly_workers_comp = st.number_input("Monthly Workers Comp", value=0.0)
+                    
+                submit_calc = st.form_submit_button("Calculate Cash Flow")
+                
+            if submit_calc:
+                try:
+                    from logic.disability import DisabilityCashFlowModel
+                    
+                    # Parse DOB
+                    client_row = get_client_by_id(client_id)
+                    dob_str = client_row.get('date_of_birth') if client_row else None
+                    try:
+                        if dob_str:
+                            dob = datetime.strptime(dob_str, '%Y-%m-%d').date()
+                        else:
+                            dob = datetime.now().date() - relativedelta(years=client_data.profile.age)
+                    except:
+                        dob = datetime.now().date() - relativedelta(years=client_data.profile.age)
+                        
+                    user_inputs = {
+                        'annual_base_salary': annual_base_salary,
+                        'annual_bonus': annual_bonus,
+                        'aime': aime,
+                        'date_of_disability': date_of_disability,
+                        'monthly_workers_comp': monthly_workers_comp,
+                        'date_of_birth': dob
+                    }
+                    
+                    model = DisabilityCashFlowModel(policy, user_inputs)
+                    df = model.generate_timeline()
+                    
+                    st.dataframe(df, use_container_width=True)
+                    
+                    # Plot
+                    st.line_chart(df[['Gross_Benefit', 'Total_Offsets', 'Net_Payout']])
+                except Exception as e:
+                    st.error(f"Error calculating cash flow: {e}")
 
 # Page configuration
 st.set_page_config(

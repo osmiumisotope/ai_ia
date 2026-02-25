@@ -1,0 +1,55 @@
+import os
+import json
+from google import genai
+from google.genai import types
+from pydantic import ValidationError
+from .disability import GroupDisabilityPolicy
+
+SYSTEM_PROMPT = """You are an expert insurance actuary and data extraction assistant specializing in Group Long-Term Disability (LTD) policies. 
+
+Your objective is to extract specific financial and contractual parameters from the provided disability insurance document and format them STRICTLY according to the JSON schema provided below.
+
+INSTRUCTIONS:
+1. Locate the precise numerical values for the Benefit Percentage, Maximum Monthly Benefit, Minimum Monthly Benefit, Elimination Period (in days), and Maximum Benefit Duration.
+2. Identify exactly which types of compensation (Base Salary, Bonuses, Commissions, Overtime) are explicitly included or excluded in the definition of "Pre-Disability Earnings".
+3. Identify the duration of the "Own Occupation" period (e.g., 24 months).
+4. Identify which "Other Income" sources are explicitly listed as offsets (e.g., Primary Social Security, Dependent/Family Social Security, Workers' Compensation, State Disability).
+5. Output ONLY valid JSON. If a value is not explicitly stated, use `null` or `false`.
+"""
+
+def extract_disability_policy(file_path: str) -> GroupDisabilityPolicy:
+    # Initialize the client. It will automatically use the GEMINI_API_KEY environment variable.
+    client = genai.Client()
+    
+    # Upload the file to Gemini
+    uploaded_file = client.files.upload(file=file_path)
+    
+    try:
+        # Call the model
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[
+                uploaded_file,
+                "Extract the disability policy details from this document."
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=GroupDisabilityPolicy,
+                temperature=0.1,
+            ),
+        )
+        
+        # Parse the JSON response
+        if hasattr(response, 'parsed') and response.parsed:
+            return response.parsed
+            
+        data = json.loads(response.text)
+        
+        # Validate with Pydantic
+        policy = GroupDisabilityPolicy(**data)
+        return policy
+        
+    finally:
+        # Clean up the uploaded file
+        client.files.delete(name=uploaded_file.name)
