@@ -368,43 +368,45 @@ def render_documents_tab(client_id: str):
             file_hash = calculate_file_hash(file_content)
             uploaded_file.seek(0)  # Reset file pointer
             
-            # Check if document already exists
-            existing_doc = get_document_by_hash(file_hash, client_id)
-            
-            if existing_doc:
-                st.warning(f"⚠️ This file has already been uploaded on {existing_doc.get('upload_time', 'unknown date')}")
-            else:
-                if st.button("📤 Upload Document", use_container_width=True):
+            if st.button("📤 Upload Document", use_container_width=True):
+                try:
+                    # Remove any existing document with the same hash for this client
+                    existing_doc = get_document_by_hash(file_hash, client_id)
+                    if existing_doc:
+                        old_path = existing_doc.get('storage_path')
+                        if old_path and Path(old_path).exists():
+                            Path(old_path).unlink()
+                        delete_document(existing_doc['id'])
+                    
+                    # Create client-specific directory
+                    client_dir = UPLOADS_DIR / client_id
+                    client_dir.mkdir(exist_ok=True)
+                    
+                    # Generate unique filename
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    safe_filename = f"{timestamp}_{uploaded_file.name}"
+                    file_path = client_dir / safe_filename
+                    
+                    # Save file to disk (best-effort for local usage)
                     try:
-                        # Create client-specific directory
-                        client_dir = UPLOADS_DIR / client_id
-                        client_dir.mkdir(exist_ok=True)
-                        
-                        # Generate unique filename
-                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                        safe_filename = f"{timestamp}_{uploaded_file.name}"
-                        file_path = client_dir / safe_filename
-                        
-                        # Save file to disk (best-effort for local usage)
-                        try:
-                            with open(file_path, 'wb') as f:
-                                f.write(file_content)
-                            disk_path = str(file_path)
-                        except OSError:
-                            disk_path = None
-                        
-                        # Add document record to database (with file bytes)
-                        doc_data = {
-                            'document_type': doc_type,
-                            'file_name': uploaded_file.name,
-                            'file_hash': file_hash,
-                            'storage_path': disk_path,
-                            'file_content': file_content,
-                            'uploaded_by': 'user'
-                        }
-                        add_document(client_id, doc_data)
-                        
-                        st.success(f"✅ Document '{uploaded_file.name}' uploaded successfully!")
+                        with open(file_path, 'wb') as f:
+                            f.write(file_content)
+                        disk_path = str(file_path)
+                    except OSError:
+                        disk_path = None
+                    
+                    # Add document record to database (with file bytes)
+                    doc_data = {
+                        'document_type': doc_type,
+                        'file_name': uploaded_file.name,
+                        'file_hash': file_hash,
+                        'storage_path': disk_path,
+                        'file_content': file_content,
+                        'uploaded_by': 'user'
+                    }
+                    add_document(client_id, doc_data)
+                    
+                    st.success(f"✅ Document '{uploaded_file.name}' uploaded successfully!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error uploading document: {e}")
