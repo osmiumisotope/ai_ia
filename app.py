@@ -407,8 +407,8 @@ def render_documents_tab(client_id: str):
                     add_document(client_id, doc_data)
                     
                     st.success(f"✅ Document '{uploaded_file.name}' uploaded successfully!")
-                        st.rerun()
-                    except Exception as e:
+                    st.rerun()
+                except Exception as e:
                         st.error(f"Error uploading document: {e}")
     
     with col2:
