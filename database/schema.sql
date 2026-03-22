@@ -246,6 +246,26 @@ CREATE TABLE IF NOT EXISTS dependents (
 );
 
 -- ============================================
+-- RISK WILLINGNESS SURVEYS TABLE
+-- Stores investor risk willingness survey responses and scores
+-- ============================================
+CREATE TABLE IF NOT EXISTS risk_willingness_surveys (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL REFERENCES clients(id),
+    answers_json TEXT NOT NULL,
+    raw_score REAL NOT NULL,
+    max_possible REAL NOT NULL,
+    normalized_score REAL NOT NULL,
+    willingness_level TEXT NOT NULL,
+    willingness_label TEXT NOT NULL,
+    category_scores_json TEXT,
+    flags_json TEXT,
+    suggested_equity_min INTEGER,
+    suggested_equity_max INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_clients_primary_uuid ON clients(primary_uuid);
@@ -267,3 +287,4 @@ CREATE INDEX IF NOT EXISTS idx_goal_allocations_account ON goal_account_allocati
 CREATE INDEX IF NOT EXISTS idx_estate_planning_client ON estate_planning(client_id);
 CREATE INDEX IF NOT EXISTS idx_documents_client ON documents(client_id);
 CREATE INDEX IF NOT EXISTS idx_dependents_client ON dependents(client_id);
+CREATE INDEX IF NOT EXISTS idx_risk_willingness_client ON risk_willingness_surveys(client_id);

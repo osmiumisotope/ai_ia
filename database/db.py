@@ -532,6 +532,75 @@ def get_client_annual_income(client_id: str, db_path: Optional[str] = None) -> f
 # Utility functions
 # ============================================
 
+# ============================================
+# Risk Willingness Survey queries
+# ============================================
+
+def save_risk_willingness_survey(
+    client_id: str,
+    survey_result: Dict[str, Any],
+    db_path: Optional[str] = None,
+) -> str:
+    """
+    Save a completed risk willingness survey for a client.
+    Stores both the raw answers and the computed scores.
+    """
+    import json
+
+    data = {
+        "client_id": client_id,
+        "answers_json": json.dumps(survey_result.get("answers", {})),
+        "raw_score": survey_result["raw_score"],
+        "max_possible": survey_result["max_possible"],
+        "normalized_score": survey_result["normalized_score"],
+        "willingness_level": survey_result["willingness_level"],
+        "willingness_label": survey_result["willingness_label"],
+        "category_scores_json": json.dumps(survey_result.get("category_scores", {})),
+        "flags_json": json.dumps(survey_result.get("flags", [])),
+        "suggested_equity_min": survey_result.get("suggested_equity_range", {}).get("min_pct"),
+        "suggested_equity_max": survey_result.get("suggested_equity_range", {}).get("max_pct"),
+    }
+    return insert_record("risk_willingness_surveys", data, db_path)
+
+
+def get_latest_risk_willingness_survey(
+    client_id: str,
+    db_path: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Get the most recent risk willingness survey for a client."""
+    import json
+
+    row = fetch_one(
+        "SELECT * FROM risk_willingness_surveys WHERE client_id = ? ORDER BY created_at DESC LIMIT 1",
+        (client_id,),
+        db_path,
+    )
+    if row:
+        row["answers"] = json.loads(row.get("answers_json") or "{}")
+        row["category_scores"] = json.loads(row.get("category_scores_json") or "{}")
+        row["flags"] = json.loads(row.get("flags_json") or "[]")
+    return row
+
+
+def get_all_risk_willingness_surveys(
+    client_id: str,
+    db_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Get all risk willingness surveys for a client, newest first."""
+    import json
+
+    rows = fetch_all(
+        "SELECT * FROM risk_willingness_surveys WHERE client_id = ? ORDER BY created_at DESC",
+        (client_id,),
+        db_path,
+    )
+    for row in rows:
+        row["answers"] = json.loads(row.get("answers_json") or "{}")
+        row["category_scores"] = json.loads(row.get("category_scores_json") or "{}")
+        row["flags"] = json.loads(row.get("flags_json") or "[]")
+    return rows
+
+
 def database_exists(db_path: Optional[str] = None) -> bool:
     """Check if the database file exists."""
     path = db_path or str(DB_PATH)

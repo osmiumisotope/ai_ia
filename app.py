@@ -65,7 +65,9 @@ from database.db import (
     get_document_by_hash,
     get_document_by_id,
     get_client_by_id,
-    get_document_content
+    get_document_content,
+    save_risk_willingness_survey,
+    get_latest_risk_willingness_survey,
 )
 
 # Uploads directory
@@ -88,7 +90,7 @@ def render_profile_section(client_id: str, client_data):
     </div>
     """, unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents", "🏥 Disability Analysis"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents", "🏥 Disability Analysis", "📊 Risk Willingness"])
     
     with tab1:
         render_personal_info_tab(client_id, client_data)
@@ -101,6 +103,9 @@ def render_profile_section(client_id: str, client_data):
         
     with tab4:
         render_disability_analysis_tab(client_id, client_data)
+    
+    with tab5:
+        render_risk_willingness_tab(client_id)
 
 
 def render_personal_info_tab(client_id: str, client_data):
@@ -590,6 +595,230 @@ def render_disability_analysis_tab(client_id: str, client_data):
                     st.line_chart(df[['Gross_Benefit', 'Total_Offsets', 'Net_Payout']])
                 except Exception as e:
                     st.error(f"Error calculating cash flow: {e}")
+
+
+def render_risk_willingness_tab(client_id: str):
+    """Render the Risk Willingness Survey tab."""
+    from logic.risk_willingness import get_questions, get_categories, score_survey, CATEGORIES
+    
+    st.markdown("""
+    <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Risk Willingness Assessment</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Evaluate the investor's psychological and emotional comfort with investment risk through a structured questionnaire.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Check for existing survey result
+    existing_survey = get_latest_risk_willingness_survey(client_id)
+    
+    if existing_survey:
+        _render_survey_results(existing_survey, show_retake=True)
+        
+        if st.button("🔄 Retake Survey", use_container_width=True):
+            st.session_state[f'retake_survey_{client_id}'] = True
+            st.rerun()
+        
+        if not st.session_state.get(f'retake_survey_{client_id}', False):
+            return
+    
+    # Render the survey form
+    questions = get_questions()
+    categories = get_categories()
+    
+    with st.form(key="risk_willingness_form"):
+        survey_answers = {}
+        
+        for cat_key, cat_info in categories.items():
+            # Category header
+            cat_label = cat_info["label"]
+            cat_desc = cat_info["description"]
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(2, 132, 199, 0.08) 100%); 
+                        padding: 1rem 1.25rem; border-radius: 10px; margin: 1.5rem 0 1rem 0; 
+                        border-left: 4px solid #059669;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">{cat_label}</h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">{cat_desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            for q_id in cat_info["questions"]:
+                q = questions[q_id]
+                q_number = q_id.replace("Q", "")
+                
+                st.markdown(f"""
+                <div style="font-size: 0.85rem; font-weight: 500; color: #1E293B; margin: 1rem 0 0.4rem 0;">
+                    <span style="color: #059669; font-weight: 600;">Q{q_number}.</span> {q['prompt']}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Build options list
+                options = ["— Select an answer —"] + [
+                    choice["text"] for choice in q["choices"]
+                ]
+                
+                selected_idx = st.selectbox(
+                    f"Q{q_number}",
+                    options=options,
+                    index=0,
+                    key=f"rw_{q_id}",
+                    label_visibility="collapsed",
+                )
+                
+                # Map selection back to key
+                if selected_idx != "— Select an answer —":
+                    for choice in q["choices"]:
+                        if choice["text"] == selected_idx:
+                            survey_answers[q_id] = choice["key"]
+                            break
+        
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("📊 Calculate Risk Willingness Score", use_container_width=True)
+    
+    if submitted:
+        # Validate all questions answered
+        missing = [q_id for q_id in questions if q_id not in survey_answers]
+        if missing:
+            missing_nums = ", ".join(q.replace("Q", "") for q in sorted(missing))
+            st.error(f"Please answer all questions. Missing: Q{missing_nums}")
+            return
+        
+        try:
+            result = score_survey(survey_answers)
+            
+            # Save to database
+            save_risk_willingness_survey(client_id, result)
+            
+            # Clear retake flag
+            if f'retake_survey_{client_id}' in st.session_state:
+                del st.session_state[f'retake_survey_{client_id}']
+            
+            st.success("✅ Risk willingness survey completed and saved!")
+            
+            _render_survey_results(result, show_retake=False)
+            
+        except ValueError as e:
+            st.error(f"Error scoring survey: {e}")
+        except Exception as e:
+            st.error(f"Error saving survey: {e}")
+
+
+def _render_survey_results(result: dict, show_retake: bool = False):
+    """Render the scored survey results."""
+    normalized = result.get("normalized_score", 0)
+    level = result.get("willingness_level", "moderate")
+    label = result.get("willingness_label", "Balanced")
+    
+    # Color mapping
+    level_colors = {
+        "low": "#0284C7",
+        "moderate": "#D97706",
+        "moderately_high": "#059669",
+        "high": "#DC2626",
+    }
+    color = level_colors.get(level, "#64748B")
+    
+    # Main score display
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Willingness Score</div>
+            <div style="font-size: 2.5rem; font-weight: 700; color: {color}; line-height: 1.2; margin: 0.5rem 0;">{normalized:.0f}</div>
+            <div style="font-size: 0.7rem; color: #94A3B8;">out of 100</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Risk Profile</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: {color}; margin: 0.5rem 0;">{label}</div>
+            <div style="font-size: 0.7rem; color: #94A3B8;">{level.replace('_', ' ').title()}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        eq_range = result.get("suggested_equity_range", {})
+        eq_min = eq_range.get("min_pct", result.get("suggested_equity_min", 30))
+        eq_max = eq_range.get("max_pct", result.get("suggested_equity_max", 60))
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Suggested Equity</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #1E293B; margin: 0.5rem 0;">{eq_min}% – {eq_max}%</div>
+            <div style="font-size: 0.7rem; color: #94A3B8;">Target allocation range</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    
+    # Category breakdown
+    st.markdown("""
+    <div style="margin-bottom: 0.75rem;">
+        <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">Category Breakdown</h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    cat_scores = result.get("category_scores", {})
+    cat_cols = st.columns(3)
+    
+    cat_labels = {
+        "loss_aversion": ("Loss Aversion", "🛡️"),
+        "self_assessment": ("Self-Assessment", "🪞"),
+        "experience_gambles": ("Experience & Gambles", "🎲"),
+    }
+    
+    for i, (cat_key, (cat_name, cat_icon)) in enumerate(cat_labels.items()):
+        with cat_cols[i]:
+            cat = cat_scores.get(cat_key, {})
+            cat_norm = cat.get("normalized", 0)
+            cat_raw = cat.get("raw", 0)
+            cat_max = cat.get("max", 0)
+            
+            if cat_norm >= 75:
+                bar_color = "#DC2626"
+            elif cat_norm >= 50:
+                bar_color = "#059669"
+            elif cat_norm >= 25:
+                bar_color = "#D97706"
+            else:
+                bar_color = "#0284C7"
+            
+            st.markdown(f"""
+            <div style="background: #FFFFFF; padding: 1.25rem; border-radius: 12px; border: 1px solid #E2E8F0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <span style="font-size: 1.25rem;">{cat_icon}</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #1E293B;">{cat_name}</span>
+                </div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: {bar_color};">{cat_norm:.0f}<span style="font-size: 0.8rem; color: #94A3B8;">/100</span></div>
+                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.5rem;">Raw: {cat_raw} / {cat_max}</div>
+                <div style="height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; width: {min(100, cat_norm)}%; background: {bar_color}; border-radius: 3px;"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Consistency flags
+    flags = result.get("flags", [])
+    if flags:
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="margin-bottom: 0.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: #D97706; margin: 0;">⚠️ Advisor Alerts</h4>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for flag_text in flags:
+            st.markdown(f"""
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem; 
+                        background: rgba(217, 119, 6, 0.06); border-radius: 8px; margin-bottom: 0.5rem;
+                        border-left: 3px solid #D97706; border: 1px solid rgba(217, 119, 6, 0.2);
+                        border-left: 3px solid #D97706;">
+                <span style="font-size: 0.825rem; color: #334155; line-height: 1.5;">{flag_text}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
 
 # Page configuration
 st.set_page_config(
