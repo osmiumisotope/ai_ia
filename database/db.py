@@ -99,6 +99,44 @@ def _run_migrations(conn):
     if 'file_content' not in columns:
         conn.execute("ALTER TABLE documents ADD COLUMN file_content BLOB")
 
+    # Migration: add employment_type to clients table
+    cursor = conn.execute("PRAGMA table_info(clients)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'employment_type' not in columns:
+        conn.execute("ALTER TABLE clients ADD COLUMN employment_type TEXT DEFAULT 'salaried_full_time'")
+
+    # Migration: create risk_tolerance_assessments table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS risk_tolerance_assessments (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL REFERENCES clients(id),
+            planning_age INTEGER NOT NULL,
+            emergency_months REAL NOT NULL,
+            monthly_debt REAL NOT NULL,
+            gross_monthly_income REAL NOT NULL,
+            employment_type TEXT NOT NULL,
+            monthly_income REAL NOT NULL,
+            monthly_expenses REAL NOT NULL,
+            num_dependents INTEGER NOT NULL,
+            dual_income BOOLEAN NOT NULL DEFAULT FALSE,
+            time_horizon_score INTEGER NOT NULL,
+            liquidity_score INTEGER NOT NULL,
+            debt_burden_score INTEGER NOT NULL,
+            income_savings_score INTEGER NOT NULL,
+            dependents_score INTEGER NOT NULL,
+            total_score INTEGER NOT NULL,
+            max_score INTEGER NOT NULL DEFAULT 90,
+            normalized_score REAL NOT NULL,
+            tolerance_level TEXT NOT NULL,
+            tolerance_label TEXT NOT NULL,
+            components_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_risk_tolerance_client ON risk_tolerance_assessments(client_id)"
+    )
+
 
 def execute_query(
     query: str, 
@@ -557,8 +595,6 @@ def save_risk_willingness_survey(
         "willingness_label": survey_result["willingness_label"],
         "category_scores_json": json.dumps(survey_result.get("category_scores", {})),
         "flags_json": json.dumps(survey_result.get("flags", [])),
-        "suggested_equity_min": survey_result.get("suggested_equity_range", {}).get("min_pct"),
-        "suggested_equity_max": survey_result.get("suggested_equity_range", {}).get("max_pct"),
     }
     return insert_record("risk_willingness_surveys", data, db_path)
 
@@ -599,6 +635,62 @@ def get_all_risk_willingness_surveys(
         row["category_scores"] = json.loads(row.get("category_scores_json") or "{}")
         row["flags"] = json.loads(row.get("flags_json") or "[]")
     return rows
+
+
+# ============================================
+# Risk Tolerance Assessment queries
+# ============================================
+
+def save_risk_tolerance_assessment(
+    client_id: str,
+    result: Dict[str, Any],
+    db_path: Optional[str] = None,
+) -> str:
+    """Save a completed risk tolerance assessment for a client."""
+    import json
+
+    components = result.get("components", {})
+    data = {
+        "client_id": client_id,
+        "planning_age": components.get("time_horizon", {}).get("planning_age", 92),
+        "emergency_months": components.get("liquidity", {}).get("emergency_months", 0),
+        "monthly_debt": components.get("debt_burden", {}).get("monthly_debt", 0),
+        "gross_monthly_income": components.get("debt_burden", {}).get("gross_monthly_income", 0),
+        "employment_type": components.get("income_stability_savings", {}).get("stability", {}).get("employment_type", "salaried_full_time"),
+        "monthly_income": components.get("income_stability_savings", {}).get("savings", {}).get("savings_rate_pct", 0),
+        "monthly_expenses": components.get("liquidity", {}).get("emergency_months", 0),
+        "num_dependents": components.get("dependents", {}).get("num_dependents", 0),
+        "dual_income": components.get("dependents", {}).get("dual_income", False),
+        "time_horizon_score": components.get("time_horizon", {}).get("score", 0),
+        "liquidity_score": components.get("liquidity", {}).get("score", 0),
+        "debt_burden_score": components.get("debt_burden", {}).get("score", 0),
+        "income_savings_score": components.get("income_stability_savings", {}).get("score", 0),
+        "dependents_score": components.get("dependents", {}).get("score", 0),
+        "total_score": result.get("total_score", 0),
+        "max_score": result.get("max_score", 90),
+        "normalized_score": result.get("normalized_score", 0),
+        "tolerance_level": result.get("tolerance_level", "moderate"),
+        "tolerance_label": result.get("tolerance_label", "Moderate"),
+        "components_json": json.dumps(components),
+    }
+    return insert_record("risk_tolerance_assessments", data, db_path)
+
+
+def get_latest_risk_tolerance_assessment(
+    client_id: str,
+    db_path: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Get the most recent risk tolerance assessment for a client."""
+    import json
+
+    row = fetch_one(
+        "SELECT * FROM risk_tolerance_assessments WHERE client_id = ? ORDER BY created_at DESC LIMIT 1",
+        (client_id,),
+        db_path,
+    )
+    if row:
+        row["components"] = json.loads(row.get("components_json") or "{}")
+    return row
 
 
 def database_exists(db_path: Optional[str] = None) -> bool:

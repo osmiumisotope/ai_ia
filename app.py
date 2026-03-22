@@ -15,6 +15,7 @@ import sys
 import os
 import hashlib
 import tempfile
+from typing import Dict
 from datetime import datetime
 from pathlib import Path
 from dateutil.relativedelta import relativedelta
@@ -68,6 +69,8 @@ from database.db import (
     get_document_content,
     save_risk_willingness_survey,
     get_latest_risk_willingness_survey,
+    save_risk_tolerance_assessment,
+    get_latest_risk_tolerance_assessment,
 )
 
 # Uploads directory
@@ -90,7 +93,7 @@ def render_profile_section(client_id: str, client_data):
     </div>
     """, unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents", "🏥 Disability Analysis", "📊 Risk Willingness"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["👤 Personal Info", "👨‍👩‍👧 Dependents", "📄 Documents", "🏥 Disability Analysis", "📊 Risk Willingness", "🎯 Risk Tolerance"])
     
     with tab1:
         render_personal_info_tab(client_id, client_data)
@@ -106,6 +109,9 @@ def render_profile_section(client_id: str, client_data):
     
     with tab5:
         render_risk_willingness_tab(client_id)
+    
+    with tab6:
+        render_risk_tolerance_tab(client_id, client_data)
 
 
 def render_personal_info_tab(client_id: str, client_data):
@@ -189,6 +195,29 @@ def render_personal_info_tab(client_id: str, client_data):
                 format_func=lambda x: x.replace('_', ' ').capitalize()
             )
             
+            # Employment Type
+            employment_type_options = [
+                'government_tenured', 'salaried_full_time', 'self_employed_stable',
+                'commission_variable', 'contract_gig', 'retired'
+            ]
+            employment_type_labels = {
+                'government_tenured': 'Government / Tenured',
+                'salaried_full_time': 'Salaried Full-Time',
+                'self_employed_stable': 'Self-Employed / Stable Business',
+                'commission_variable': 'Commission / Variable Income',
+                'contract_gig': 'Contract / Gig Worker',
+                'retired': 'Retired',
+            }
+            current_employment = client_row.get('employment_type', 'salaried_full_time') or 'salaried_full_time'
+            employment_index = employment_type_options.index(current_employment) if current_employment in employment_type_options else 1
+            
+            employment_type = st.selectbox(
+                "Employment Type",
+                options=employment_type_options,
+                index=employment_index,
+                format_func=lambda x: employment_type_labels.get(x, x.replace('_', ' ').title())
+            )
+            
             # State
             us_states = [
                 'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -217,6 +246,7 @@ def render_personal_info_tab(client_id: str, client_data):
                     'retirement_age': retirement_age,
                     'risk_tolerance': risk_tolerance,
                     'marital_status': marital_status,
+                    'employment_type': employment_type,
                     'state': state
                 }
                 update_client_profile(client_id, update_data)
@@ -608,20 +638,20 @@ def render_risk_willingness_tab(client_id: str):
     </div>
     """, unsafe_allow_html=True)
     
-    # Check for existing survey result
+    # Load existing survey to pre-populate answers
     existing_survey = get_latest_risk_willingness_survey(client_id)
     
+    # Build a map of previously selected answer keys from the latest survey
+    previous_answers: Dict[str, str] = {}
     if existing_survey:
-        _render_survey_results(existing_survey, show_retake=True)
-        
-        if st.button("🔄 Retake Survey", use_container_width=True):
-            st.session_state[f'retake_survey_{client_id}'] = True
-            st.rerun()
-        
-        if not st.session_state.get(f'retake_survey_{client_id}', False):
-            return
+        saved_answers = existing_survey.get("answers", {})
+        for q_id, ans_detail in saved_answers.items():
+            if isinstance(ans_detail, dict):
+                previous_answers[q_id] = ans_detail.get("selected", "")
+            else:
+                previous_answers[q_id] = str(ans_detail)
     
-    # Render the survey form
+    # --- Survey form (always visible) ---
     questions = get_questions()
     categories = get_categories()
     
@@ -629,7 +659,6 @@ def render_risk_willingness_tab(client_id: str):
         survey_answers = {}
         
         for cat_key, cat_info in categories.items():
-            # Category header
             cat_label = cat_info["label"]
             cat_desc = cat_info["description"]
             
@@ -657,10 +686,19 @@ def render_risk_willingness_tab(client_id: str):
                     choice["text"] for choice in q["choices"]
                 ]
                 
+                # Determine default index from previous answers
+                default_index = 0
+                prev_key = previous_answers.get(q_id)
+                if prev_key:
+                    for idx, choice in enumerate(q["choices"]):
+                        if choice["key"] == prev_key:
+                            default_index = idx + 1  # +1 because of the placeholder
+                            break
+                
                 selected_idx = st.selectbox(
                     f"Q{q_number}",
                     options=options,
-                    index=0,
+                    index=default_index,
                     key=f"rw_{q_id}",
                     label_visibility="collapsed",
                 )
@@ -689,21 +727,28 @@ def render_risk_willingness_tab(client_id: str):
             # Save to database
             save_risk_willingness_survey(client_id, result)
             
-            # Clear retake flag
-            if f'retake_survey_{client_id}' in st.session_state:
-                del st.session_state[f'retake_survey_{client_id}']
-            
             st.success("✅ Risk willingness survey completed and saved!")
-            
-            _render_survey_results(result, show_retake=False)
+            # Rerun so the page re-reads the latest survey from DB,
+            # ensuring results and pre-selected answers are in sync.
+            st.rerun()
             
         except ValueError as e:
             st.error(f"Error scoring survey: {e}")
         except Exception as e:
             st.error(f"Error saving survey: {e}")
+    
+    # --- Results section (shown below the form when a survey exists) ---
+    # Re-fetch to always reflect the latest saved state
+    latest_survey = get_latest_risk_willingness_survey(client_id)
+    if latest_survey:
+        st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="border-top: 2px solid #E2E8F0; margin-bottom: 1.5rem;"></div>
+        """, unsafe_allow_html=True)
+        _render_survey_results(latest_survey)
 
 
-def _render_survey_results(result: dict, show_retake: bool = False):
+def _render_survey_results(result: dict):
     """Render the scored survey results."""
     normalized = result.get("normalized_score", 0)
     level = result.get("willingness_level", "moderate")
@@ -719,7 +764,7 @@ def _render_survey_results(result: dict, show_retake: bool = False):
     color = level_colors.get(level, "#64748B")
     
     # Main score display
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2 = st.columns([1, 1])
     
     with col1:
         st.markdown(f"""
@@ -736,18 +781,6 @@ def _render_survey_results(result: dict, show_retake: bool = False):
             <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Risk Profile</div>
             <div style="font-size: 1.5rem; font-weight: 700; color: {color}; margin: 0.5rem 0;">{label}</div>
             <div style="font-size: 0.7rem; color: #94A3B8;">{level.replace('_', ' ').title()}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        eq_range = result.get("suggested_equity_range", {})
-        eq_min = eq_range.get("min_pct", result.get("suggested_equity_min", 30))
-        eq_max = eq_range.get("max_pct", result.get("suggested_equity_max", 60))
-        st.markdown(f"""
-        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
-            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Suggested Equity</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #1E293B; margin: 0.5rem 0;">{eq_min}% – {eq_max}%</div>
-            <div style="font-size: 0.7rem; color: #94A3B8;">Target allocation range</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -816,6 +849,388 @@ def _render_survey_results(result: dict, show_retake: bool = False):
                         border-left: 3px solid #D97706; border: 1px solid rgba(217, 119, 6, 0.2);
                         border-left: 3px solid #D97706;">
                 <span style="font-size: 0.825rem; color: #334155; line-height: 1.5;">{flag_text}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+def render_risk_tolerance_tab(client_id: str, client_data):
+    """Render the Risk Tolerance (risk-taking ability) assessment tab."""
+    from logic.risk_tolerance import (
+        EMPLOYMENT_TYPES,
+        calculate_risk_tolerance,
+        derive_values_from_client_data,
+    )
+
+    st.markdown("""
+    <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; color: #1E293B; margin: 0 0 0.5rem 0;">Risk Tolerance Assessment</h3>
+        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Evaluate the investor's objective risk-taking <strong>ability</strong> based on measurable financial factors. Enter values manually on the left, or copy calculated values from the right.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Derive calculated values from existing client data
+    calc = derive_values_from_client_data(client_data, client_id)
+
+    # Load previously saved assessment to pre-populate
+    existing = get_latest_risk_tolerance_assessment(client_id)
+
+    # Helper to get a default from saved assessment or calculated value
+    def _default(saved_key, calc_key, cast=float):
+        if existing:
+            val = existing.get(saved_key)
+            if val is not None:
+                return cast(val)
+        return cast(calc.get(calc_key, 0))
+
+    # ─── Employment type options for the form ───
+    emp_keys = [e["key"] for e in EMPLOYMENT_TYPES]
+    emp_labels = {e["key"]: e["label"] for e in EMPLOYMENT_TYPES}
+
+    # ─── Layout: left = manual inputs (form), right = calculated suggestions ───
+    col_form, col_calc = st.columns([3, 2])
+
+    with col_calc:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(2,132,199,0.06) 0%, rgba(5,150,105,0.06) 100%);
+                    padding: 1.25rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0 0 0.75rem 0;">📊 Calculated Values</h4>
+            <p style="font-size: 0.75rem; color: #64748B; margin: 0 0 1rem 0;">These values are derived from existing client data. Use them as reference when filling in the form.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Time Horizon
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Time Horizon</div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Current Age: <strong>{calc['current_age']}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Default Planning Age: <strong>{calc['planning_age']}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Years to planning: <strong>{max(0, calc['planning_age'] - calc['current_age'])}</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Liquidity
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Liquidity</div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Liquid Savings: <strong>${calc['liquid_savings']:,.0f}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Monthly Expenses: <strong>${calc['monthly_expenses']:,.0f}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Emergency Months: <strong>{calc['emergency_months']:.1f}</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Debt Burden
+        dti_calc = (calc['monthly_debt'] / calc['gross_monthly_income'] * 100) if calc['gross_monthly_income'] > 0 else 0
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Debt Burden</div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Monthly Debt Payments: <strong>${calc['monthly_debt']:,.0f}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Gross Monthly Income: <strong>${calc['gross_monthly_income']:,.0f}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">DTI: <strong>{dti_calc:.1f}%</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Income & Savings
+        savings_rate_calc = ((calc['monthly_income'] - calc['monthly_expenses'] - calc['monthly_debt']) / calc['monthly_income'] * 100) if calc['monthly_income'] > 0 else 0
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Income Stability & Savings Rate</div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Employment Type: <strong>{emp_labels.get(calc['employment_type'], calc['employment_type'])}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Monthly Income: <strong>${calc['monthly_income']:,.0f}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Savings Rate: <strong>{savings_rate_calc:.1f}%</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Dependents
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Dependents</div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Financial Dependents: <strong>{calc['num_dependents']}</strong></div>
+            <div style="font-size: 0.85rem; color: #1E293B;">Dual Income Household: <strong>{'Yes' if calc['dual_income'] else 'No'}</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Copy all values button
+        if st.button("📋 Use All Calculated Values", key="rt_copy_all", use_container_width=True):
+            st.session_state['rt_use_calculated'] = True
+            st.rerun()
+
+    use_calc = st.session_state.pop('rt_use_calculated', False)
+
+    with col_form:
+        with st.form(key="risk_tolerance_form"):
+            # ── 1. Time Horizon (25 pts) ──
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(2,132,199,0.08) 100%);
+                        padding: 1rem 1.25rem; border-radius: 10px; margin-bottom: 1rem;
+                        border-left: 4px solid #059669;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">1. Time Horizon <span style="font-weight: 400; color: #64748B;">(25 pts max)</span></h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">Years to planning age. Each year = 1 point, max 25.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            planning_age = st.number_input(
+                "Planning Age (age money needs to last until)",
+                min_value=int(calc['current_age']) + 1,
+                max_value=120,
+                value=int(calc['planning_age']) if use_calc else int(_default('planning_age', 'planning_age', int)),
+                step=1,
+                key="rt_planning_age",
+            )
+
+            # ── 2. Liquidity (20 pts) ──
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(2,132,199,0.08) 100%);
+                        padding: 1rem 1.25rem; border-radius: 10px; margin: 1.5rem 0 1rem 0;
+                        border-left: 4px solid #0284C7;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">2. Liquidity <span style="font-weight: 400; color: #64748B;">(20 pts max)</span></h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">Months of expenses coverable by liquid savings.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            emergency_months = st.number_input(
+                "Emergency Months (months of expenses covered)",
+                min_value=0.0,
+                max_value=120.0,
+                value=float(calc['emergency_months']) if use_calc else float(_default('emergency_months', 'emergency_months')),
+                step=0.5,
+                format="%.1f",
+                key="rt_emergency_months",
+            )
+
+            # ── 3. Debt Burden (15 pts) ──
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(2,132,199,0.08) 100%);
+                        padding: 1rem 1.25rem; border-radius: 10px; margin: 1.5rem 0 1rem 0;
+                        border-left: 4px solid #D97706;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">3. Debt Burden — DTI <span style="font-weight: 400; color: #64748B;">(15 pts max)</span></h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">Debt-to-income ratio. Lower DTI = higher score.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            rt_col1, rt_col2 = st.columns(2)
+            with rt_col1:
+                monthly_debt = st.number_input(
+                    "Monthly Debt Payments ($)",
+                    min_value=0.0,
+                    value=float(calc['monthly_debt']) if use_calc else float(_default('monthly_debt', 'monthly_debt')),
+                    step=100.0,
+                    format="%.0f",
+                    key="rt_monthly_debt",
+                )
+            with rt_col2:
+                gross_monthly_income = st.number_input(
+                    "Gross Monthly Income ($)",
+                    min_value=0.0,
+                    value=float(calc['gross_monthly_income']) if use_calc else float(_default('gross_monthly_income', 'gross_monthly_income')),
+                    step=100.0,
+                    format="%.0f",
+                    key="rt_gross_monthly_income",
+                )
+
+            # ── 4. Income Stability & Savings Rate (15 pts) ──
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(2,132,199,0.08) 100%);
+                        padding: 1rem 1.25rem; border-radius: 10px; margin: 1.5rem 0 1rem 0;
+                        border-left: 4px solid #7C3AED;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">4. Income Stability & Savings Rate <span style="font-weight: 400; color: #64748B;">(15 pts max)</span></h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">8 pts for employment stability + 7 pts for savings rate.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            default_emp = calc['employment_type'] if use_calc else (
+                existing.get('employment_type', calc['employment_type']) if existing else calc['employment_type']
+            )
+            emp_index = emp_keys.index(default_emp) if default_emp in emp_keys else 1
+
+            employment_type_input = st.selectbox(
+                "Employment Type",
+                options=emp_keys,
+                index=emp_index,
+                format_func=lambda x: emp_labels.get(x, x),
+                key="rt_employment_type",
+            )
+
+            rt_col3, rt_col4 = st.columns(2)
+            with rt_col3:
+                monthly_income_input = st.number_input(
+                    "Monthly Income ($)",
+                    min_value=0.0,
+                    value=float(calc['monthly_income']) if use_calc else float(_default('monthly_income', 'monthly_income')),
+                    step=100.0,
+                    format="%.0f",
+                    key="rt_monthly_income",
+                )
+            with rt_col4:
+                monthly_expenses_input = st.number_input(
+                    "Monthly Expenses ($)",
+                    min_value=0.0,
+                    value=float(calc['monthly_expenses']) if use_calc else float(_default('monthly_expenses', 'monthly_expenses')),
+                    step=100.0,
+                    format="%.0f",
+                    key="rt_monthly_expenses",
+                )
+
+            # ── 5. Dependents (15 pts) ──
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(2,132,199,0.08) 100%);
+                        padding: 1rem 1.25rem; border-radius: 10px; margin: 1.5rem 0 1rem 0;
+                        border-left: 4px solid #DB2777;">
+                <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">5. Dependents <span style="font-weight: 400; color: #64748B;">(15 pts max)</span></h4>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0.25rem 0 0 0;">Fewer dependents and dual income = higher score.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            rt_col5, rt_col6 = st.columns(2)
+            with rt_col5:
+                num_dependents = st.number_input(
+                    "Number of Financial Dependents",
+                    min_value=0,
+                    max_value=20,
+                    value=int(calc['num_dependents']) if use_calc else int(_default('num_dependents', 'num_dependents', int)),
+                    step=1,
+                    key="rt_num_dependents",
+                )
+            with rt_col6:
+                default_dual = calc['dual_income'] if use_calc else (
+                    bool(existing.get('dual_income', calc['dual_income'])) if existing else calc['dual_income']
+                )
+                dual_income = st.selectbox(
+                    "Dual Income Household?",
+                    options=[True, False],
+                    index=0 if default_dual else 1,
+                    format_func=lambda x: "Yes" if x else "No",
+                    key="rt_dual_income",
+                )
+
+            st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("📊 Calculate Risk Tolerance Score", use_container_width=True)
+
+        if submitted:
+            try:
+                result = calculate_risk_tolerance(
+                    current_age=calc['current_age'],
+                    planning_age=int(planning_age),
+                    emergency_months=float(emergency_months),
+                    monthly_debt=float(monthly_debt),
+                    gross_monthly_income=float(gross_monthly_income),
+                    employment_type=employment_type_input,
+                    monthly_income=float(monthly_income_input),
+                    monthly_expenses=float(monthly_expenses_input),
+                    num_dependents=int(num_dependents),
+                    dual_income=bool(dual_income),
+                )
+
+                save_risk_tolerance_assessment(client_id, result)
+                st.success("✅ Risk tolerance assessment completed and saved!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error calculating risk tolerance: {e}")
+
+    # ─── Results section ───
+    latest = get_latest_risk_tolerance_assessment(client_id)
+    if latest:
+        st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+        st.markdown('<div style="border-top: 2px solid #E2E8F0; margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True)
+        _render_risk_tolerance_results(latest)
+
+
+def _render_risk_tolerance_results(result: dict):
+    """Render scored risk tolerance results."""
+    total = result.get("total_score", 0)
+    max_score = result.get("max_score", 90)
+    normalized = result.get("normalized_score", 0)
+    level = result.get("tolerance_level", "moderate")
+    label = result.get("tolerance_label", "Moderate")
+    components = result.get("components", {})
+
+    level_colors = {
+        "low": "#0284C7",
+        "low_moderate": "#D97706",
+        "moderate": "#059669",
+        "high": "#DC2626",
+    }
+    color = level_colors.get(level, "#64748B")
+
+    # Main score display
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Total Score</div>
+            <div style="font-size: 2.5rem; font-weight: 700; color: {color}; line-height: 1.2; margin: 0.5rem 0;">{total}</div>
+            <div style="font-size: 0.7rem; color: #94A3B8;">out of {max_score}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; padding: 1.5rem; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center;">
+            <div style="font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">Risk Tolerance Profile</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: {color}; margin: 0.5rem 0;">{label}</div>
+            <div style="font-size: 0.7rem; color: #94A3B8;">{normalized:.0f} / 100 normalized</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+
+    # Component breakdown
+    st.markdown("""
+    <div style="margin-bottom: 0.75rem;">
+        <h4 style="font-size: 0.95rem; font-weight: 600; color: #1E293B; margin: 0;">Component Breakdown</h4>
+    </div>
+    """, unsafe_allow_html=True)
+
+    component_meta = [
+        ("time_horizon", "Time Horizon", "⏳", 25),
+        ("liquidity", "Liquidity", "💧", 20),
+        ("debt_burden", "Debt Burden", "💳", 15),
+        ("income_stability_savings", "Income & Savings", "💼", 15),
+        ("dependents", "Dependents", "👨‍👩‍👧‍👦", 15),
+    ]
+
+    comp_cols = st.columns(5)
+    for i, (key, name, icon, max_pts) in enumerate(component_meta):
+        with comp_cols[i]:
+            comp = components.get(key, {})
+            score = comp.get("score", 0)
+            pct = (score / max_pts * 100) if max_pts > 0 else 0
+
+            if pct >= 75:
+                bar_color = "#059669"
+            elif pct >= 50:
+                bar_color = "#0284C7"
+            elif pct >= 25:
+                bar_color = "#D97706"
+            else:
+                bar_color = "#DC2626"
+
+            # Build detail text based on component
+            detail = ""
+            if key == "time_horizon":
+                detail = f"Planning age: {comp.get('planning_age', '—')}"
+            elif key == "liquidity":
+                detail = f"{comp.get('emergency_months', 0):.1f} months"
+            elif key == "debt_burden":
+                detail = f"DTI: {comp.get('dti_pct', 0):.1f}%"
+            elif key == "income_stability_savings":
+                stab = comp.get("stability", {})
+                sav = comp.get("savings", {})
+                detail = f"Stability: {stab.get('score', 0)}/8 | Savings: {sav.get('score', 0)}/7"
+            elif key == "dependents":
+                detail = f"{comp.get('num_dependents', 0)} dep, {'dual' if comp.get('dual_income') else 'single'}"
+
+            st.markdown(f"""
+            <div style="background: #FFFFFF; padding: 1.25rem; border-radius: 12px; border: 1px solid #E2E8F0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <span style="font-size: 1.25rem;">{icon}</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #1E293B;">{name}</span>
+                </div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: {bar_color};">{score}<span style="font-size: 0.8rem; color: #94A3B8;">/{max_pts}</span></div>
+                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.5rem;">{detail}</div>
+                <div style="height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; width: {min(100, pct)}%; background: {bar_color}; border-radius: 3px;"></div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 

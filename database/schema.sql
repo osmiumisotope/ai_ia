@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS clients (
     risk_tolerance TEXT CHECK(risk_tolerance IN ('low', 'moderate', 'high', 'critical')),
     marital_status TEXT,
     state TEXT,
+    employment_type TEXT DEFAULT 'salaried_full_time',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -260,8 +261,36 @@ CREATE TABLE IF NOT EXISTS risk_willingness_surveys (
     willingness_label TEXT NOT NULL,
     category_scores_json TEXT,
     flags_json TEXT,
-    suggested_equity_min INTEGER,
-    suggested_equity_max INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- RISK TOLERANCE ASSESSMENTS TABLE
+-- Stores investor risk tolerance (ability) assessments
+-- ============================================
+CREATE TABLE IF NOT EXISTS risk_tolerance_assessments (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL REFERENCES clients(id),
+    planning_age INTEGER NOT NULL,
+    emergency_months REAL NOT NULL,
+    monthly_debt REAL NOT NULL,
+    gross_monthly_income REAL NOT NULL,
+    employment_type TEXT NOT NULL,
+    monthly_income REAL NOT NULL,
+    monthly_expenses REAL NOT NULL,
+    num_dependents INTEGER NOT NULL,
+    dual_income BOOLEAN NOT NULL DEFAULT FALSE,
+    time_horizon_score INTEGER NOT NULL,
+    liquidity_score INTEGER NOT NULL,
+    debt_burden_score INTEGER NOT NULL,
+    income_savings_score INTEGER NOT NULL,
+    dependents_score INTEGER NOT NULL,
+    total_score INTEGER NOT NULL,
+    max_score INTEGER NOT NULL DEFAULT 90,
+    normalized_score REAL NOT NULL,
+    tolerance_level TEXT NOT NULL,
+    tolerance_label TEXT NOT NULL,
+    components_json TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -288,3 +317,4 @@ CREATE INDEX IF NOT EXISTS idx_estate_planning_client ON estate_planning(client_
 CREATE INDEX IF NOT EXISTS idx_documents_client ON documents(client_id);
 CREATE INDEX IF NOT EXISTS idx_dependents_client ON dependents(client_id);
 CREATE INDEX IF NOT EXISTS idx_risk_willingness_client ON risk_willingness_surveys(client_id);
+CREATE INDEX IF NOT EXISTS idx_risk_tolerance_client ON risk_tolerance_assessments(client_id);

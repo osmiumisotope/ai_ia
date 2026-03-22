@@ -168,15 +168,6 @@ WILLINGNESS_LEVELS = [
     {"min": 76, "max": 100, "level": "high", "label": "Aggressive"},
 ]
 
-# Suggested equity ranges per willingness level
-EQUITY_RANGES = {
-    "low": {"min_pct": 10, "max_pct": 30},
-    "moderate": {"min_pct": 30, "max_pct": 60},
-    "moderately_high": {"min_pct": 60, "max_pct": 80},
-    "high": {"min_pct": 80, "max_pct": 100},
-}
-
-
 # ============================================
 # SCORING ENGINE
 # ============================================
@@ -341,7 +332,7 @@ def score_survey(answers: Dict[str, str]) -> Dict[str, Any]:
 
     Returns:
         Dict with full scoring output including raw_score, normalized_score,
-        willingness_level, category_scores, flags, suggested_equity_range,
+        willingness_level, category_scores, flags,
         and detailed answer breakdown.
 
     Raises:
@@ -403,11 +394,6 @@ def score_survey(answers: Dict[str, str]) -> Dict[str, Any]:
     # Consistency flags
     flags = _detect_flags(answers, category_scores, normalized_score)
 
-    # Suggested equity range
-    equity_range = EQUITY_RANGES.get(
-        willingness_level, {"min_pct": 30, "max_pct": 60}
-    )
-
     return {
         "raw_score": round(weighted_score, 2),
         "max_possible": round(max_score, 2),
@@ -417,7 +403,6 @@ def score_survey(answers: Dict[str, str]) -> Dict[str, Any]:
         "willingness_label": willingness_label,
         "category_scores": category_scores,
         "flags": flags,
-        "suggested_equity_range": equity_range,
         "answers": answer_details,
     }
 
