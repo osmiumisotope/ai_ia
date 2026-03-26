@@ -6,6 +6,7 @@ Provides SQLite database connection and query utilities.
 from .db import (
     get_connection,
     init_database,
+    run_migrations,
     database_exists,
     execute_query,
     fetch_one,
@@ -31,6 +32,7 @@ from .db import (
 __all__ = [
     "get_connection",
     "init_database",
+    "run_migrations",
     "database_exists",
     "execute_query",
     "fetch_one",

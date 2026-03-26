@@ -91,6 +91,12 @@ def init_database(db_path: Optional[str] = None, seed_data: bool = False) -> boo
         return False
 
 
+def run_migrations(db_path: Optional[str] = None):
+    """Run schema migrations on an existing database (public entry-point)."""
+    with get_db_context(db_path) as conn:
+        _run_migrations(conn)
+
+
 def _run_migrations(conn):
     """Apply any missing schema migrations to an existing database."""
     # Migration: add file_content BLOB to documents table
@@ -135,6 +141,28 @@ def _run_migrations(conn):
     """)
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_risk_tolerance_client ON risk_tolerance_assessments(client_id)"
+    )
+
+    # Migration: create risk_assessment_results table (combined score)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS risk_assessment_results (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL REFERENCES clients(id),
+            willingness_score REAL NOT NULL,
+            tolerance_score REAL NOT NULL,
+            lower_score REAL NOT NULL,
+            higher_score REAL NOT NULL,
+            lower_dimension TEXT NOT NULL,
+            unified_score REAL NOT NULL,
+            profile_key TEXT NOT NULL,
+            profile_label TEXT NOT NULL,
+            allocation_json TEXT,
+            total_equity REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_risk_assessment_client ON risk_assessment_results(client_id)"
     )
 
 
@@ -690,6 +718,51 @@ def get_latest_risk_tolerance_assessment(
     )
     if row:
         row["components"] = json.loads(row.get("components_json") or "{}")
+    return row
+
+
+# ============================================
+# Combined Risk Assessment queries
+# ============================================
+
+def save_risk_assessment_result(
+    client_id: str,
+    result: Dict[str, Any],
+    db_path: Optional[str] = None,
+) -> str:
+    """Save a combined risk assessment result for a client."""
+    import json
+
+    data = {
+        "client_id": client_id,
+        "willingness_score": result["willingness_score"],
+        "tolerance_score": result["tolerance_score"],
+        "lower_score": result["lower_score"],
+        "higher_score": result["higher_score"],
+        "lower_dimension": result["lower_dimension"],
+        "unified_score": result["unified_score"],
+        "profile_key": result["profile_key"],
+        "profile_label": result["profile_label"],
+        "allocation_json": json.dumps(result.get("allocation", {})),
+        "total_equity": result["total_equity"],
+    }
+    return insert_record("risk_assessment_results", data, db_path)
+
+
+def get_latest_risk_assessment_result(
+    client_id: str,
+    db_path: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Get the most recent combined risk assessment for a client."""
+    import json
+
+    row = fetch_one(
+        "SELECT * FROM risk_assessment_results WHERE client_id = ? ORDER BY created_at DESC LIMIT 1",
+        (client_id,),
+        db_path,
+    )
+    if row:
+        row["allocation"] = json.loads(row.get("allocation_json") or "{}")
     return row
 
 

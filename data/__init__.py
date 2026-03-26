@@ -13,7 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.db import database_exists, init_database
+from database.db import database_exists, init_database, run_migrations
 
 
 def get_all_sample_clients():
@@ -21,6 +21,9 @@ def get_all_sample_clients():
     try:
         if not database_exists():
             init_database(seed_data=True)
+        else:
+            # Always run migrations so new tables are created on existing DBs
+            run_migrations()
         
         db_clients = get_all_clients_from_db()
         
