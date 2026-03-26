@@ -47,3 +47,6 @@ Thumbs.db
 
 # Streamlit secrets (contains API keys)
 .streamlit/secrets.toml
+
+# Uploaded client files (stored in DB as BLOBs, not needed in repo)
+uploads/*/
